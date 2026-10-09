@@ -36,8 +36,8 @@ Paid reservations are built in Phase 2. They can only open after the launch chec
 - **Money** is stored as whole cents in USD. Each retreat has an explicit timezone. Every room, inventory unit and booking belongs to a retreat, so later seasonal events stay separate.
 - **Security**
   - Guests sign in with a one-time code sent to their email. A name and email alone never unlock anything.
-  - Admins have named accounts with owner or staff roles. Two-step sign-in with an authenticator app is required.
-  - Every API action checks the session, MFA and role on the server.
+  - Admins have named accounts with owner or staff roles. After their own password, they enter a shared admin code (`ADMIN_PASSWORD` in Vercel). Any admin can optionally switch to an authenticator app instead. Note: a password plus a shared code are both things you know, so this is lighter than true two-factor sign-in. Turning on authenticator apps is the stronger option before launch.
+  - Every API action checks the session, the second sign-in step and the role on the server.
   - Portal data is always looked up from the signed-in guest's own account, never from an ID the browser sends.
   - Rate limits, spam checks and origin checks apply to every form.
   - Private pages carry `noindex`.
@@ -77,12 +77,13 @@ All accounts should be **owned by Empowered Wombman**, with collaborators added 
 6. **Add environment variables.** Go to Settings, then Environment Variables, and add the values listed in `.env.example`:
    - `APP_SECRET`
    - `SETUP_TOKEN`
+   - `ADMIN_PASSWORD` (the admin code)
    - `RESEND_API_KEY`
    - `EMAIL_FROM`
    - `CRON_SECRET`
    - `SITE_URL`
-7. **Deploy.** Then open `/admin/` and create the owner account using the `SETUP_TOKEN`, and set up two-step sign-in. Once the owner exists you can delete `SETUP_TOKEN`.
-8. **Invite staff.** The owner invites staff from **Settings and Audit**. Each person gets their own login and sets up their own two-step sign-in.
+7. **Deploy.** Then open `/admin/`, create the owner account using the `SETUP_TOKEN`, and enter the admin code (`ADMIN_PASSWORD`). Once the owner exists you can delete `SETUP_TOKEN`.
+8. **Invite staff.** The owner invites staff from **Settings and Audit**. Each person sets their own password and uses the admin code to finish signing in. Share the code privately, and change `ADMIN_PASSWORD` (then redeploy) whenever someone leaves the team.
 9. **Check that everything is connected.** Open `/api/site?fn=health` on the live site. It lists each setting as present or missing, with how to fix it, and never shows the values. After you sign in, the **Integrations** list in Settings and Audit shows the same.
 
 **Email retry schedule.** On Vercel's Hobby plan, scheduled jobs run once a day, so `vercel.json` sends retries daily. On the Pro plan, change the schedule to `*/15 * * * *` so failed emails retry every 15 minutes. Emails are also sent immediately when they are created, and staff can retry from **Communications** at any time.
@@ -107,12 +108,13 @@ Neon keeps point-in-time history of the database, and you can restore to an earl
 ```bash
 npm install
 npm run dev          # http://localhost:3000 (in-memory Postgres, fake email)
-npm test             # 40 end-to-end acceptance checks
+npm test             # 42 end-to-end acceptance checks
 ```
 
 Local testing works like this:
 
 - **Setup token:** `local-setup-token-123`
+- **Admin code:** `local-admin-code-123`
 - **Fake emails:** viewable at `/dev/outbox`
 - **Simulated email outage:** turn it on with `/dev/email-fail?on=1`
 
@@ -129,7 +131,7 @@ The dev server is for local testing only. It is never deployed.
 | Waiting list | Useful field errors. Calm success. Exactly one confirmation email. Duplicates, including different-case emails, get the same message with no second row or email. Bot submissions are dropped quietly. Simultaneous duplicate submissions save once. Floods hit a rate limit. If email delivery fails, the sign-up is still saved and the email is queued for retry |
 | Guest sign-in | Wrong codes are refused with tries remaining. Used codes can't be reused. Resend is limited. A verified guest sees her correct waiting-list status, with no reservation or address |
 | Guest data | A second guest cannot read or change the first guest's records, even with extra IDs in the URL or request. Sign-out works. Cross-site form posts are blocked |
-| Admin access | Unauthenticated requests are refused for every admin action. First-owner setup needs the setup token and can run only once. Data stays locked until two-step sign-in is done. Sign-in needs a password and an authenticator code |
+| Admin access | Unauthenticated requests are refused for every admin action. First-owner setup needs the setup token and can run only once. Data stays locked until the admin code is entered, and a password alone can't skip it or add an authenticator app. Once an admin turns on an authenticator app, the shared code no longer works for that account |
 | Roles | Staff can't change prices, price basis, retreat settings, terms, staff, email approvals, client emails or inventory. The owner can |
 | Change history | Price changes are recorded with the before and after values and who made the change |
 | Paid launch | Blocked while dates, terms, price basis or inventory are unconfirmed. The Emerald and Obsidian difference is flagged |

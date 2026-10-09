@@ -1,6 +1,6 @@
 # Admin guide
 
-Sign in at **/admin/** with your email, your password and the 6-digit code from your authenticator app. You'll be signed out after 2 hours without activity.
+Sign in at **/admin/** with your email and your own password, then enter the admin code. If you've turned on an authenticator app in Settings and Audit, enter the code from the app instead. You'll be signed out after 2 hours without activity.
 
 **Owners** can do everything.
 

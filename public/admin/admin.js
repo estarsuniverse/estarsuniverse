@@ -86,7 +86,7 @@
     ME = st.admin || null;
     if (st.state === "setup") return setupScreen();
     if (st.state === "signed_out") return loginScreen();
-    if (st.state === "mfa_enroll") return enrollScreen();
+    if (st.state === "code_verify") return codeScreen();
     if (st.state === "mfa_verify") return verifyScreen();
     shell();
   }
@@ -127,16 +127,27 @@
     bindForm("f", async (v) => { await call("login", v); boot(); });
   }
 
+  function codeScreen() {
+    authCard(`<h1>Admin code</h1><p class="muted">Enter the admin code to finish signing in.</p>
+      <form id="f" novalidate><label>Admin code<input type="password" name="code" autocomplete="off" required></label>
+      <p class="form-error" role="alert"></p><button class="btn btn-primary" type="submit">Sign in</button>
+      <button class="linkish" type="button" id="other">Sign in as someone else</button></form>`);
+    bindForm("f", async (v) => { await call("code-verify", v); boot(); });
+    document.getElementById("other").onclick = async () => { await call("logout"); boot(); };
+  }
+
   async function enrollScreen() {
     authCard(`<h1>Set up two-step sign-in</h1><p class="muted">Loading…</p>`);
     let r;
     try { r = await call("mfa-begin"); } catch (e) { return authCard(`<h1>Two-step sign-in</h1><p class="form-error">${esc(e.message)}</p>`); }
-    authCard(`<h1>Set up two-step sign-in</h1>
-      <p class="muted">Every admin uses an authenticator app (Google Authenticator, 1Password, Authy, or similar). Scan this code, then enter the 6-digit number it shows.</p>
+    authCard(`<h1>Use an authenticator app</h1>
+      <p class="muted">Optional. An authenticator app (Google Authenticator, 1Password, Authy, or similar) replaces the admin code for your account. Scan this code, then enter the 6-digit number it shows.</p>
       <div class="qr">${r.qr}</div>
       <p class="small muted" style="margin:10px 0 4px">Can’t scan? Enter this key in the app:</p><p class="secret">${esc(r.secret)}</p>
       <form id="f" novalidate><label>6-digit code<input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required></label>
-      <p class="form-error" role="alert"></p><button class="btn btn-primary" type="submit">Turn on and continue</button></form>`);
+      <p class="form-error" role="alert"></p><button class="btn btn-primary" type="submit">Turn on and continue</button>
+      <button class="linkish" type="button" id="cancel-enroll">Cancel and keep using the admin code</button></form>`);
+    document.getElementById("cancel-enroll").onclick = () => boot();
     bindForm("f", async (v) => { await call("mfa-enable", v); boot(); });
   }
 
@@ -636,15 +647,18 @@
       <div class="panel"><h2>Staff access</h2><div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Two-step sign-in</th><th>Last sign-in</th><th></th></tr></thead><tbody>
         ${sl.rows.map((a) => `<tr><td><span class="name">${esc(a.name)}</span><small>${esc(a.email)}</small>${a.active ? "" : tag("Deactivated", "bad")}${a.invite_expires ? `<small>Invitation pending until ${fmtDateTime(a.invite_expires)}</small>` : ""}</td>
           <td>${isOwner() ? `<select data-role="${esc(a.id)}" aria-label="Role for ${esc(a.name)}"><option value="owner" ${a.role === "owner" ? "selected" : ""}>Owner</option><option value="staff" ${a.role === "staff" ? "selected" : ""}>Staff</option></select>` : esc(a.role)}</td>
-          <td>${a.totp_enabled ? tag("On", "ok") : tag("Not set up", "warn")}</td><td>${a.last_login_at ? fmtDateTime(a.last_login_at) : "Never"}</td>
-          <td>${isOwner() && a.id !== ME.id ? `<div class="row"><button class="iconbtn" data-active="${esc(a.id)}" data-on="${a.active ? 0 : 1}">${a.active ? "Deactivate" : "Reactivate"}</button><button class="iconbtn" data-mfa="${esc(a.id)}">Reset two-step</button></div>` : ""}</td></tr>`).join("")}
+          <td>${a.totp_enabled ? tag("Authenticator app", "ok") : tag("Admin code", "ok")}</td><td>${a.last_login_at ? fmtDateTime(a.last_login_at) : "Never"}</td>
+          <td>${isOwner() && a.id !== ME.id ? `<div class="row"><button class="iconbtn" data-active="${esc(a.id)}" data-on="${a.active ? 0 : 1}">${a.active ? "Deactivate" : "Reactivate"}</button>${a.totp_enabled ? `<button class="iconbtn" data-mfa="${esc(a.id)}">Remove authenticator app</button>` : ""}</div>` : ""}</td></tr>`).join("")}
         </tbody></table></div>
         ${isOwner() ? `<form class="form" id="inv-form" style="margin-top:14px" novalidate><h3>Invite someone</h3><div class="fgrid"><label>Name<input type="text" name="name" required></label><label>Email<input type="email" name="email" required></label><label>Role<select name="role"><option value="staff">Staff</option><option value="owner">Owner</option></select></label><div style="align-self:end"><button class="btn btn-primary" type="submit">Send invitation</button></div></div><p class="small muted" id="inv-link"></p></form>` : ""}
         <p class="small muted">Owners can change roles, payment settings, prices and sensitive configuration. Staff can manage the waiting list, clients, room descriptions and photos, content and email drafts.</p></div>
+      <div class="panel"><h2>Your sign-in</h2><p class="small muted">You sign in with your own password, then ${ME.authenticator ? "a code from your authenticator app" : "the admin code (set as ADMIN_PASSWORD in Vercel). Change that code whenever someone leaves the team"}.</p>
+        ${ME.authenticator ? "" : '<button class="btn btn-outline" id="use-app">Optional: use an authenticator app instead</button>'}</div>
       <div class="panel"><h2>Integrations</h2><ul class="checklist">${ig.items.map((i) => `<li><span class="${i.ok ? "ok" : "no"}">${i.ok ? "✓" : "✕"}</span><span>${esc(i.name)}<br><small class="muted">${esc(i.detail)}</small></span></li>`).join("")}</ul></div>
       <div class="panel"><h2>Change history</h2><div class="table-wrap"><table><thead><tr><th>When</th><th>Who</th><th>What</th><th>Details</th></tr></thead><tbody id="audit-rows"></tbody></table></div>
         <button class="iconbtn" id="audit-more" style="margin-top:10px">Load older</button></div>`;
     renderAudit();
+    const ua = document.getElementById("use-app"); if (ua) ua.onclick = () => enrollScreen();
     const rf = document.getElementById("ret-form");
     rf.addEventListener("input", () => (S.unsaved = true));
     rf.onsubmit = (ev) => {
@@ -659,7 +673,7 @@
     };
     v.querySelectorAll("[data-role]").forEach((s) => (s.onchange = () => busy(null, async () => { const a = sl.rows.find((x) => x.id === s.dataset.role); await call("staff-update", { id: a.id, role: s.value, active: a.active }); toast("Role updated."); vSettings(v); })));
     v.querySelectorAll("[data-active]").forEach((b) => (b.onclick = () => busy(b, async () => { const a = sl.rows.find((x) => x.id === b.dataset.active); await call("staff-update", { id: a.id, role: a.role, active: b.dataset.on === "1" }); vSettings(v); })));
-    v.querySelectorAll("[data-mfa]").forEach((b) => (b.onclick = async () => { if (await confirmBox("Reset two-step sign-in?", "They’ll be signed out and asked to set up their authenticator app again at next sign-in.", "Reset", true)) busy(b, async () => { await call("staff-reset-mfa", { id: b.dataset.mfa }); toast("Reset."); vSettings(v); }); }));
+    v.querySelectorAll("[data-mfa]").forEach((b) => (b.onclick = async () => { if (await confirmBox("Remove their authenticator app?", "They’ll be signed out and will use the admin code at their next sign-in.", "Remove", true)) busy(b, async () => { await call("staff-reset-mfa", { id: b.dataset.mfa }); toast("Removed."); vSettings(v); }); }));
     const inv = document.getElementById("inv-form");
     if (inv) inv.onsubmit = (ev) => { ev.preventDefault(); busy(inv.querySelector("button"), async () => { const r = await call("staff-invite", Object.fromEntries(new FormData(inv))); document.getElementById("inv-link").innerHTML = `Invitation emailed. You can also share this private link (expires in 72 hours): <br><code>${esc(r.inviteUrl)}</code>`; toast("Invitation sent."); }); };
     document.getElementById("audit-more").onclick = (e) => busy(e.target, async () => { const last = S.audit[S.audit.length - 1]; if (!last) return; const r = await call("audit-list", { before: last.id }); S.audit.push(...r.rows); renderAudit(); if (!r.rows.length) e.target.hidden = true; });
