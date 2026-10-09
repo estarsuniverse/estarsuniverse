@@ -2,8 +2,9 @@
 const { handler, send, checkOrigin, UserError } = require("../lib/http");
 const pub = require("../lib/public");
 const guest = require("../lib/guest");
+const health = require("../lib/health");
 
-const GET = { content: pub.content, me: guest.me, unsubscribe: pub.unsubscribe };
+const GET = { health, content: pub.content, me: guest.me, unsubscribe: pub.unsubscribe };
 const POST = {
   waitlist: pub.waitlist,
   "auth-start": guest.authStart,

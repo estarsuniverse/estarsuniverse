@@ -18,8 +18,6 @@ section { padding: clamp(64px, 9vw, 112px) 0; }
   background: rgba(0,0,0,.35); color: var(--bg); font-size: 13px; letter-spacing: -2px; cursor: pointer; }
 .hero-pause:hover { background: var(--bg); color: var(--ink); }
 .hero-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.25) 55%, rgba(0,0,0,0) 85%), linear-gradient(180deg, rgba(0,0,0,.25) 0%, rgba(0,0,0,.45) 45%, rgba(0,0,0,.8) 100%); }
-.hero-rings { position: absolute; right: -120px; top: -80px; width: 520px; opacity: .55; pointer-events: none; }
-.hero-rings circle { fill: none; stroke: var(--gold); stroke-width: 1; }
 .hero-inner { position: relative; padding: 120px 0 clamp(56px, 8vw, 96px); text-shadow: 0 1px 12px rgba(0,0,0,.3); }
 .hero .kicker { color: var(--bg); }
 .hero h1 { font-size: clamp(38px, 6.6vw, 76px); color: var(--bg); max-width: 17ch; margin-bottom: 18px; }
@@ -175,6 +173,5 @@ section { padding: clamp(64px, 9vw, 112px) 0; }
   .rooms-grid { grid-template-columns: 1fr; }
   .facts div, .room dl div { grid-template-columns: 96px 1fr; }
   .session { grid-template-columns: 1fr; gap: 4px; }
-  .hero-rings { width: 340px; right: -150px; }
-  html { scroll-padding-top: 116px; }
+    html { scroll-padding-top: 116px; }
 }

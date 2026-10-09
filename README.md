@@ -83,7 +83,7 @@ All accounts should be **owned by Empowered Wombman**, with collaborators added 
    - `SITE_URL`
 7. **Deploy.** Then open `/admin/` and create the owner account using the `SETUP_TOKEN`, and set up two-step sign-in. Once the owner exists you can delete `SETUP_TOKEN`.
 8. **Invite staff.** The owner invites staff from **Settings and Audit**. Each person gets their own login and sets up their own two-step sign-in.
-9. **Check that everything is connected.** Use the **Integrations** list in Settings and Audit.
+9. **Check that everything is connected.** Open `/api/site?fn=health` on the live site. It lists each setting as present or missing, with how to fix it, and never shows the values. After you sign in, the **Integrations** list in Settings and Audit shows the same.
 
 **Email retry schedule.** On Vercel's Hobby plan, scheduled jobs run once a day, so `vercel.json` sends retries daily. On the Pro plan, change the schedule to `*/15 * * * *` so failed emails retry every 15 minutes. Emails are also sent immediately when they are created, and staff can retry from **Communications** at any time.
 
