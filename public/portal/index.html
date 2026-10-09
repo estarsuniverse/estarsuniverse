@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light only">
+<title>Guest Portal | Empowered Wombman</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/portal.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="/" id="brand"><span class="wordmark">Empowered Wombman</span></a>
+    <button class="portal-link" id="signout" hidden type="button">Sign out</button>
+  </div>
+</header>
+
+<main id="main">
+  <!-- Sign in -->
+  <section class="auth" id="auth" hidden>
+    <div class="auth-card">
+      <p class="kicker">Embodied Godis Retreat</p>
+      <h1>Your guest portal</h1>
+      <form id="start-form" novalidate>
+        <p class="muted">Enter your email and we’ll send you a one-time code. No password needed.</p>
+        <label><span>Your name <span class="req">(optional)</span></span><input type="text" name="name" autocomplete="name" maxlength="100"></label>
+        <label><span>Email</span><input type="email" name="email" autocomplete="email" inputmode="email" required maxlength="254" aria-describedby="start-err"></label>
+        <p class="form-error" id="start-err" role="alert"></p>
+        <button class="btn btn-primary" type="submit">Email me a code</button>
+      </form>
+      <form id="verify-form" novalidate hidden>
+        <p class="muted" id="verify-msg"></p>
+        <label><span>6-digit code</span><input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="7" required aria-describedby="verify-err" class="code-input"></label>
+        <p class="form-error" id="verify-err" role="alert"></p>
+        <button class="btn btn-primary" type="submit">Sign in</button>
+        <div class="auth-links">
+          <button type="button" class="linkish" id="resend">Send a new code</button>
+          <button type="button" class="linkish" id="change-email">Use a different email</button>
+        </div>
+      </form>
+      <p class="fine">Signing in shows your own waiting list or reservation details only. Joining the waiting list or signing in does not reserve a room.</p>
+    </div>
+  </section>
+
+  <!-- Portal -->
+  <section class="portal" id="portal" hidden>
+    <div class="wrap">
+      <div class="portal-head">
+        <p class="kicker" id="p-retreat"></p>
+        <h1 id="p-welcome">Welcome, sistar.</h1>
+        <p class="muted" id="p-email"></p>
+      </div>
+      <div class="ptabs" role="tablist" aria-label="Portal sections" id="ptabs"></div>
+      <div id="panels"></div>
+    </div>
+  </section>
+  <div class="wrap" id="loading"><p class="muted" style="padding:80px 0" aria-live="polite">Loading…</p></div>
+</main>
+
+<footer class="footer on-dark">
+  <div class="wrap footer-inner">
+    <div><span class="wordmark" id="foot-brand">Empowered Wombman</span><p class="tag">Embodied Godis Retreat</p></div>
+    <div class="footer-links"><a href="/">Retreat details</a></div>
+  </div>
+</footer>
+<script src="/js/common.js"></script>
+<script src="/js/portal.js"></script>
+</body>
+</html>

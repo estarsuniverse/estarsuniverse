@@ -1,0 +1,20 @@
+{
+  "name": "embodied-godis-retreat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Embodied Godis Retreat: public retreat page, waiting list, guest portal and admin area for Empowered Wombman.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "node tools/devserver.js",
+    "test": "node test/acceptance.js"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.8.1",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "playwright-core": "^1.64.0"
+  }
+}
