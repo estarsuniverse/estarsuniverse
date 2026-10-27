@@ -97,9 +97,10 @@ async function signInGuest(c, email) {
     assert.equal(by["Sapphire"].beds, "1 queen bed"); assert.equal(by["Moonstone"].beds, "3 queen beds");
     for (const n of ["Tiger’s Eye", "Emerald", "Obsidian"]) assert.equal(by[n].beds, "2 queen beds", n);
     for (const n of ["Sapphire", "Tiger’s Eye", "Emerald", "Obsidian"]) assert.match(by[n].bathroom, /^Private en suite/, n);
-    assert.equal(by["Moonstone"].bathroom, "Detached shared full bathroom");
-    for (const n of ["Emerald", "Moonstone"]) assert.match(by[n].accessibility, /^Downstairs/, n);
+    for (const n of ["Moonstone", "Downstairs queen sofa bed 1", "Downstairs queen sofa bed 2"]) assert.equal(by[n].bathroom, "Detached shared full bathroom", n);
+    for (const n of ["Emerald", "Moonstone", "Downstairs queen sofa bed 1", "Downstairs queen sofa bed 2"]) assert.match(by[n].accessibility, /^Downstairs/, n);
     for (const n of ["Sapphire", "Tiger’s Eye", "Obsidian"]) assert.equal(by[n].accessibility, "Upstairs.", n);
+    for (const n of ["Moonstone", "Downstairs queen sofa bed 1", "Downstairs queen sofa bed 2"]) assert.equal(by[n].features, "Shared detached balcony with a jacuzzi", n);
     for (const r of content.data.rooms) assert.ok(!("privacy" in r), r.name);
     assert.match(content.data.site.stay.sharedNote, /No one shares a bed/);
   });

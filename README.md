@@ -162,12 +162,10 @@ All of these can be edited in the admin area. Text in `[square brackets]` is hig
 - ~~**Price basis.**~~ **Done:** every room is priced per guest.
 - ~~**Guest capacities.**~~ **Done:** Sapphire 1, Tiger’s Eye 2, Emerald 2, Obsidian 2, Moonstone 3, each sofa bed 1. No one shares a bed (`migrations/009_separate_beds.sql`).
 - ~~**Event photos.**~~ **Done:** ten photos from Estar’s past gatherings are in The Experience gallery (`public/media/events/`, `migrations/003_event_photos.sql`). Edit them in Content and Branding, then The Experience, then Photos. Confirm everyone pictured has agreed to appear on the site.
-- ~~**Beds, bathrooms and accessibility.**~~ **Done** for the bedrooms (`migrations/007_room_beds_bathrooms.sql`). Room privacy is no longer shown.
+- ~~**Beds, bathrooms and accessibility.**~~ **Done** (`migrations/007_room_beds_bathrooms.sql`; the sofa beds share Moonstone’s bathroom, `migrations/010_downstairs_bathroom_balcony.sql`). Room privacy is no longer shown.
 - **Room details.** For each room:
   - whether admission is included
   - inventory
-  - Moonstone's features
-  - sofa-bed bathroom and accessibility
   - the Emerald and Obsidian difference note (they are the same room type with the same features; the $100 price gap is waiting on the client's decision)
 - **Payment terms.** Taxes, fees, deposit, installments, cancellation, transfer and refunds (Bookings and Payments).
 - **Day pass.** Whether to sell one, and at what price.
