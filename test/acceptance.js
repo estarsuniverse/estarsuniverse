@@ -86,7 +86,7 @@ async function signInGuest(c, email) {
     }
   });
   await check("Room photos load, with descriptions; the sofa beds have none yet", async () => {
-    const want = { "Sapphire": 4, "Tiger’s Eye": 4, "Emerald": 3, "Obsidian": 4, "Moonstone": 3, "Downstairs queen sofa bed 1": 0, "Downstairs queen sofa bed 2": 0 };
+    const want = { "Sapphire": 4, "Tiger’s Eye": 4, "Emerald": 4, "Obsidian": 4, "Moonstone": 4, "Downstairs queen sofa bed 1": 0, "Downstairs queen sofa bed 2": 0 };
     for (const r of content.data.rooms) {
       assert.equal(r.photos.length, want[r.name], r.name);
       for (const p of r.photos) { assert.ok(p.alt && p.alt.length > 20, p.url); assert.equal((await fetch(BASE + p.url)).status, 200, p.url); }
