@@ -86,10 +86,14 @@ async function signInGuest(c, email) {
     }
   });
   await check("Room photos load, with descriptions", async () => {
-    const want = { "Sapphire": 4, "Tiger’s Eye": 4, "Emerald": 4, "Obsidian": 4, "Moonstone": 5, "Downstairs queen sofa bed 1": 6, "Downstairs queen sofa bed 2": 6 };
+    const want = { "Sapphire": 4, "Tiger’s Eye": 4, "Emerald": 5, "Obsidian": 4, "Moonstone": 6, "Downstairs queen sofa bed 1": 6, "Downstairs queen sofa bed 2": 6 };
     for (const r of content.data.rooms) {
       assert.equal(r.photos.length, want[r.name], r.name);
       for (const p of r.photos) { assert.ok(p.alt && p.alt.length > 20, p.url); assert.equal((await fetch(BASE + p.url)).status, 200, p.url); }
+      if (r.name === "Emerald" || r.name === "Moonstone") {
+        const urls = r.photos.map((p) => p.url);
+        assert.equal(urls.indexOf("/media/rooms/downstairs-living-1.jpg") + 1, urls.indexOf("/media/rooms/downstairs-kitchenette.jpg"), r.name);
+      }
     }
   });
   await check("Beds, bathrooms and accessibility match the confirmed details; room privacy is not shown", async () => {
