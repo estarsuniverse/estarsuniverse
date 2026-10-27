@@ -272,7 +272,13 @@
         if (!en.isIntersecting) return;
         links.forEach((a) => a.setAttribute("aria-current", String(a.getAttribute("href") === `#${en.target.id}`)));
         const cur = links.find((a) => a.getAttribute("href") === `#${en.target.id}`);
-        if (cur) cur.scrollIntoView({ block: "nearest", inline: "nearest", behavior: EG.reducedMotion() ? "auto" : "smooth" });
+        // Scroll only the tab strip sideways. scrollIntoView would also scroll the page and fight the visitor's own scrolling.
+        const strip = cur && cur.closest("ul");
+        if (strip) {
+          const left = cur.offsetLeft - strip.offsetLeft, right = left + cur.offsetWidth;
+          const to = left < strip.scrollLeft ? left : right > strip.scrollLeft + strip.clientWidth ? right - strip.clientWidth : null;
+          if (to !== null) strip.scrollTo({ left: to, behavior: EG.reducedMotion() ? "auto" : "smooth" });
+        }
       });
     }, { rootMargin: "-45% 0px -50% 0px" });
     ids.forEach((id) => { const el = $(id); if (el) io.observe(el); });

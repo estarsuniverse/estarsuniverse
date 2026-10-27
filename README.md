@@ -127,7 +127,7 @@ The dev server is for local testing only. It is never deployed.
 | Area | What is checked |
 | --- | --- |
 | Rooms | All 7 room prices match the brief exactly. Prices are per guest, and each room's guest capacity matches the confirmed details (never inferred from occupancy labels). Admission stays unconfirmed |
-| Public page | The confirmed dates and venue are shown. Unapproved activities (including yoni steaming) and portal-only content are not public. The Experience photo list is present |
+| Public page | The confirmed dates and venue are shown. The Experience photos load and each has a description. Unapproved activities (including yoni steaming) and portal-only content are not public |
 | Waiting list | Useful field errors. Calm success. Exactly one confirmation email. Duplicates, including different-case emails, get the same message with no second row or email. Bot submissions are dropped quietly. Simultaneous duplicate submissions save once. Floods hit a rate limit. If email delivery fails, the sign-up is still saved and the email is queued for retry |
 | Guest sign-in | Wrong codes are refused with tries remaining. Used codes can't be reused. Resend is limited. A verified guest sees her correct waiting-list status, with no reservation or address |
 | Guest data | A second guest cannot read or change the first guest's records, even with extra IDs in the URL or request. Sign-out works. Cross-site form posts are blocked |
@@ -156,12 +156,12 @@ All of these can be edited in the admin area. Text in `[square brackets]` is hig
 
 - **Logo.** A text wordmark marked "Logo placeholder" is shown until the logo is uploaded in **Content and Branding**.
 - **Hero video.** The pond video (`public/media/pond.mp4`, with a WebM backup) plays in the header, with a pause button. Visitors who prefer reduced motion see the aerial photo instead. The video's first frame shows the entry gate, which has lettering on it. Confirm with Estar that she's comfortable showing it.
-- **Venue photos.** The grounds gallery and hero use venue photos supplied by Jadon. Confirm they are approved for this retreat, since the brief requires approved imagery.
+- ~~**Venue photos.**~~ **Done:** the venue photos in the grounds gallery and hero are approved for this retreat.
 - **Room photos.** Every room needs real photos of that room.
 - ~~**Retreat details.** Dates, year, nights and venue.~~ **Done:** March 6 to 10, 2027 (4 nights) at Peace on the Pond, Douglasville, Georgia (`migrations/002_confirmed_details.sql`). The timezone stays America/New_York; change it in Settings and Audit if needed.
 - ~~**Price basis.**~~ **Done:** every room is priced per guest.
 - ~~**Guest capacities.**~~ **Done:** Sapphire 1, Tiger’s Eye 2, Emerald 2, Obsidian 2, Moonstone 3, each sofa bed 2.
-- **Event photos.** The Experience section now has a photo gallery (Content and Branding, then The Experience, then Photos). It stays hidden until photos are added. The photos from Estar’s past gatherings still need to be added.
+- ~~**Event photos.**~~ **Done:** ten photos from Estar’s past gatherings are in The Experience gallery (`public/media/events/`, `migrations/003_event_photos.sql`). Edit them in Content and Branding, then The Experience, then Photos. Confirm everyone pictured has agreed to appear on the site.
 - **Room details.** For each room:
   - whether admission is included
   - actual beds

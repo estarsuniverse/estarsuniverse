@@ -90,8 +90,12 @@ async function signInGuest(c, email) {
     assert.deepEqual(content.data.retreat.venue, { name: "Peace on the Pond", city: "Douglasville, Georgia" });
     assert.equal(content.data.retreat.reservationsOpen, false);
   });
-  await check("Experience photos are a list on the public content", async () => {
-    assert.ok(Array.isArray(content.data.site.experience.photos));
+  await check("Experience photos are public, each with a local image and a description", async () => {
+    const photos = content.data.site.experience.photos;
+    assert.equal(photos.length, 10);
+    for (const p of photos) { assert.match(p.url, /^\/media\/events\/[a-z0-9-]+\.jpg$/); assert.ok(p.alt && p.alt.length > 20, p.id); }
+    for (const p of photos) assert.equal((await fetch(BASE + p.url)).status, 200, p.url);
+    assert.ok(!/approved for this retreat/.test(content.data.site.grounds.intro), "venue photo approval note still shown");
   });
   await check("Unapproved activities (including yoni steaming) and portal-only content are not public", async () => {
     assert.equal(content.data.site.experience.activities.length, 0);
