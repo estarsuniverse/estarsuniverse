@@ -93,7 +93,7 @@ async function signInGuest(c, email) {
   await check("Experience photos are public, each with a local image and a description", async () => {
     const photos = content.data.site.experience.photos;
     assert.equal(photos.length, 10);
-    for (const p of photos) { assert.match(p.url, /^\/media\/events\/[a-z0-9-]+\.jpg$/); assert.ok(p.alt && p.alt.length > 20, p.id); }
+    for (const p of photos) { assert.match(p.url, /^\/media\/events\/[a-z0-9-]+\.jpg$/); assert.ok(p.alt && p.alt.length > 20, p.id); assert.equal(p.caption, "", p.id); }
     for (const p of photos) assert.equal((await fetch(BASE + p.url)).status, 200, p.url);
     assert.ok(!/approved for this retreat/.test(content.data.site.grounds.intro), "venue photo approval note still shown");
   });
