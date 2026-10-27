@@ -85,6 +85,13 @@ async function signInGuest(c, email) {
       assert.equal(r.includes_admission, "unconfirmed"); assert.equal(r.difference_note, ""); assert.equal(r.availability, "waitlist");
     }
   });
+  await check("Room photos load, with descriptions; the sofa beds have none yet", async () => {
+    const want = { "Sapphire": 4, "Tiger’s Eye": 4, "Emerald": 3, "Obsidian": 4, "Moonstone": 3, "Downstairs queen sofa bed 1": 0, "Downstairs queen sofa bed 2": 0 };
+    for (const r of content.data.rooms) {
+      assert.equal(r.photos.length, want[r.name], r.name);
+      for (const p of r.photos) { assert.ok(p.alt && p.alt.length > 20, p.url); assert.equal((await fetch(BASE + p.url)).status, 200, p.url); }
+    }
+  });
   await check("Confirmed dates and venue are public; reservations closed", async () => {
     assert.deepEqual(content.data.retreat.dates, { start: "March 6, 2027", end: "March 10, 2027", nights: 4 });
     assert.deepEqual(content.data.retreat.venue, { name: "Peace on the Pond", city: "Douglasville, Georgia" });

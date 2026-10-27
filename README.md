@@ -108,7 +108,7 @@ Neon keeps point-in-time history of the database, and you can restore to an earl
 ```bash
 npm install
 npm run dev          # http://localhost:3000 (in-memory Postgres, fake email)
-npm test             # 43 end-to-end acceptance checks
+npm test             # 44 end-to-end acceptance checks
 ```
 
 Local testing works like this:
@@ -157,7 +157,7 @@ All of these can be edited in the admin area. Text in `[square brackets]` is hig
 - **Logo.** A text wordmark marked "Logo placeholder" is shown until the logo is uploaded in **Content and Branding**.
 - **Hero video.** The pond video (`public/media/pond.mp4`, with a WebM backup) plays in the header, with a pause button. Visitors who prefer reduced motion see the aerial photo instead. The video's first frame shows the entry gate, which has lettering on it. Confirm with Estar that she's comfortable showing it.
 - ~~**Venue photos.**~~ **Done:** the venue photos in the grounds gallery and hero are approved for this retreat.
-- **Room photos.** Every room needs real photos of that room.
+- **Room photos.** Sapphire, Tiger’s Eye, Emerald, Obsidian and Moonstone have photos cropped from the Peace on the Pond suites flyer (`public/media/rooms/`, `migrations/006_room_photos.sql`). Tiger’s Eye is the flyer’s Sunstone suite. The crops are small, so replace them with the full-size originals in Rooms and Inventory when available. The two sofa beds still need photos.
 - ~~**Retreat details.** Dates, year, nights and venue.~~ **Done:** March 6 to 10, 2027 (4 nights) at Peace on the Pond, Douglasville, Georgia (`migrations/002_confirmed_details.sql`). The timezone stays America/New_York; change it in Settings and Audit if needed.
 - ~~**Price basis.**~~ **Done:** every room is priced per guest.
 - ~~**Guest capacities.**~~ **Done:** Sapphire 1, Tiger’s Eye 2, Emerald 2, Obsidian 2, Moonstone 3, each sofa bed 2.
