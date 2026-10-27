@@ -68,15 +68,10 @@
 
     // Grounds gallery
     const g = s.grounds || {};
-    const photos = (g.photos || []).filter((p) => p.url);
-    if (photos.length) {
+    if (gallery(g.photos, "gr-grid", "gr-all")) {
       $("grounds").hidden = false;
       $("gr-heading").innerHTML = mark(g.heading || "The grounds");
       $("gr-intro").innerHTML = mark(g.intro);
-      $("gr-grid").innerHTML = photos.slice(0, 6).map((p, i) => `<button type="button" data-lb="${i}" aria-label="Open photo: ${esc(p.caption || p.alt || "")}"><img src="${esc(p.url)}" alt="${esc(p.alt || "")}" loading="lazy">${p.caption ? `<span class="cap">${esc(p.caption)}</span>` : ""}</button>`).join("");
-      const all = $("gr-all");
-      if (photos.length > 6) { all.hidden = false; all.textContent = `See all ${photos.length} photos`; all.onclick = () => openLightbox(photos, 0); }
-      document.querySelectorAll("[data-lb]").forEach((b) => (b.onclick = () => openLightbox(photos, +b.dataset.lb)));
     }
 
     // Experience
@@ -85,6 +80,7 @@
     $("exp-welcomes").innerHTML = paras(e.welcomes);
     $("exp-participation").innerHTML = mark(e.participation);
     $("exp-participation").hidden = !e.participation;
+    $("exp-gallery").hidden = !gallery(e.photos, "exp-grid", "exp-all");
     $("exp-in").innerHTML = (e.inclusions || []).map((x) => `<li>${mark(x)}</li>`).join("") || '<li class="tbd">To be confirmed</li>';
     $("exp-out").innerHTML = (e.exclusions || []).map((x) => `<li>${mark(x)}</li>`).join("") || '<li class="tbd">To be confirmed</li>';
     const acts = e.activities || [];
@@ -181,6 +177,18 @@
       card.querySelectorAll(".room-thumbs button").forEach((x) => x.setAttribute("aria-pressed", String(x === btn)));
     }));
     document.querySelectorAll("[data-pick]").forEach((a) => a.addEventListener("click", () => { $("wl-room").value = a.dataset.pick; }));
+  }
+
+  // Photo mosaic: the first six photos, with "See all" opening the viewer. Returns false when there are none.
+  function gallery(list, gridId, allId) {
+    const photos = (list || []).filter((p) => p.url);
+    if (!photos.length) return false;
+    const grid = $(gridId);
+    grid.innerHTML = photos.slice(0, 6).map((p, i) => `<button type="button" data-lb="${i}" aria-label="Open photo: ${esc(p.caption || p.alt || "")}"><img src="${esc(p.url)}" alt="${esc(p.alt || "")}" loading="lazy">${p.caption ? `<span class="cap">${esc(p.caption)}</span>` : ""}</button>`).join("");
+    const all = $(allId);
+    if (photos.length > 6) { all.hidden = false; all.textContent = `See all ${photos.length} photos`; all.onclick = () => openLightbox(photos, 0); }
+    grid.querySelectorAll("[data-lb]").forEach((b) => (b.onclick = () => openLightbox(photos, +b.dataset.lb)));
+    return true;
   }
 
   // ---- Photo viewer ----

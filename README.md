@@ -108,7 +108,7 @@ Neon keeps point-in-time history of the database, and you can restore to an earl
 ```bash
 npm install
 npm run dev          # http://localhost:3000 (in-memory Postgres, fake email)
-npm test             # 42 end-to-end acceptance checks
+npm test             # 43 end-to-end acceptance checks
 ```
 
 Local testing works like this:
@@ -126,15 +126,15 @@ The dev server is for local testing only. It is never deployed.
 
 | Area | What is checked |
 | --- | --- |
-| Rooms | All 7 room prices match the brief exactly. Price basis starts unconfirmed, and capacity is never inferred from occupancy labels |
-| Public page | Unconfirmed dates and venue, unapproved activities (including yoni steaming) and portal-only content are not public |
+| Rooms | All 7 room prices match the brief exactly. Prices are per guest, and each room's guest capacity matches the confirmed details (never inferred from occupancy labels). Admission stays unconfirmed |
+| Public page | The confirmed dates and venue are shown. Unapproved activities (including yoni steaming) and portal-only content are not public. The Experience photo list is present |
 | Waiting list | Useful field errors. Calm success. Exactly one confirmation email. Duplicates, including different-case emails, get the same message with no second row or email. Bot submissions are dropped quietly. Simultaneous duplicate submissions save once. Floods hit a rate limit. If email delivery fails, the sign-up is still saved and the email is queued for retry |
 | Guest sign-in | Wrong codes are refused with tries remaining. Used codes can't be reused. Resend is limited. A verified guest sees her correct waiting-list status, with no reservation or address |
 | Guest data | A second guest cannot read or change the first guest's records, even with extra IDs in the URL or request. Sign-out works. Cross-site form posts are blocked |
 | Admin access | Unauthenticated requests are refused for every admin action. First-owner setup needs the setup token and can run only once. Data stays locked until the admin code is entered, and a password alone can't skip it or add an authenticator app. Once an admin turns on an authenticator app, the shared code no longer works for that account |
 | Roles | Staff can't change prices, price basis, retreat settings, terms, staff, email approvals, client emails or inventory. The owner can |
-| Change history | Price changes are recorded with the before and after values and who made the change |
-| Paid launch | Blocked while dates, terms, price basis or inventory are unconfirmed. The Emerald and Obsidian difference is flagged |
+| Change history | Price changes are recorded with the before and after values and who made the change. The confirmed-details migration is recorded |
+| Paid launch | Dates and venue pass. Still blocked while terms, admission or inventory are unconfirmed. The Emerald and Obsidian difference is flagged |
 | Content | Draft, preview and publish work. The yoni steaming item can't be published until the owner records the safety review. Testimonials need recorded permission. Unsafe links are rejected |
 | Exports | CSV exports contain only permitted fields, and intentions and staff notes are never exported. The marketing export contains only people who opted in. Spreadsheet formula injection is blocked |
 | Email | Failed emails are visible and can be retried. Unsubscribe links work, and forged links are refused. The scheduled job needs its secret |
@@ -158,19 +158,20 @@ All of these can be edited in the admin area. Text in `[square brackets]` is hig
 - **Hero video.** The pond video (`public/media/pond.mp4`, with a WebM backup) plays in the header, with a pause button. Visitors who prefer reduced motion see the aerial photo instead. The video's first frame shows the entry gate, which has lettering on it. Confirm with Estar that she's comfortable showing it.
 - **Venue photos.** The grounds gallery and hero use venue photos supplied by Jadon. Confirm they are approved for this retreat, since the brief requires approved imagery.
 - **Room photos.** Every room needs real photos of that room.
-- **Retreat details.** Dates, year, nights, venue and timezone (Settings and Audit). They show publicly only when marked confirmed.
+- ~~**Retreat details.** Dates, year, nights and venue.~~ **Done:** March 6 to 10, 2027 (4 nights) at Peace on the Pond, Douglasville, Georgia (`migrations/002_confirmed_details.sql`). The timezone stays America/New_York; change it in Settings and Audit if needed.
+- ~~**Price basis.**~~ **Done:** every room is priced per guest.
+- ~~**Guest capacities.**~~ **Done:** Sapphire 1, Tiger’s Eye 2, Emerald 2, Obsidian 2, Moonstone 3, each sofa bed 2.
+- **Event photos.** The Experience section now has a photo gallery (Content and Branding, then The Experience, then Photos). It stays hidden until photos are added. The photos from Estar’s past gatherings still need to be added.
 - **Room details.** For each room:
-  - price basis
   - whether admission is included
-  - guest capacity
   - actual beds
   - bathroom
   - privacy
   - accessibility
   - inventory
   - Moonstone's features
-  - sofa-bed capacity and privacy
-  - the Emerald and Obsidian difference note
+  - sofa-bed privacy
+  - the Emerald and Obsidian difference note (they are the same room type with the same features; the $100 price gap is waiting on the client's decision)
 - **Payment terms.** Taxes, fees, deposit, installments, cancellation, transfer and refunds (Bookings and Payments).
 - **Day pass.** Whether to sell one, and at what price.
 - **Experience.** Which sessions to publish. Yoni steaming is held back pending a separate safety review.

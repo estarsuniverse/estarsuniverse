@@ -78,11 +78,20 @@ async function signInGuest(c, email) {
     const got = Object.fromEntries(content.data.rooms.map((r) => [r.name, r.price_cents]));
     assert.deepEqual(got, want);
   });
-  await check("Price basis starts unconfirmed and no capacity is inferred from occupancy labels", async () => {
-    for (const r of content.data.rooms) { assert.equal(r.price_basis, "unconfirmed"); assert.equal(r.guest_capacity, null); assert.equal(r.availability, "waitlist"); }
+  await check("Prices are per guest and capacities match the confirmed details; admission stays unconfirmed", async () => {
+    const want = { "Sapphire": 1, "Tiger’s Eye": 2, "Emerald": 2, "Obsidian": 2, "Moonstone": 3, "Downstairs queen sofa bed 1": 2, "Downstairs queen sofa bed 2": 2 };
+    for (const r of content.data.rooms) {
+      assert.equal(r.price_basis, "per_guest"); assert.equal(r.guest_capacity, want[r.name], r.name);
+      assert.equal(r.includes_admission, "unconfirmed"); assert.equal(r.difference_note, ""); assert.equal(r.availability, "waitlist");
+    }
   });
-  await check("Unconfirmed dates/venue are hidden; reservations closed", async () => {
-    assert.equal(content.data.retreat.dates, null); assert.equal(content.data.retreat.venue, null); assert.equal(content.data.retreat.reservationsOpen, false);
+  await check("Confirmed dates and venue are public; reservations closed", async () => {
+    assert.deepEqual(content.data.retreat.dates, { start: "March 6, 2027", end: "March 10, 2027", nights: 4 });
+    assert.deepEqual(content.data.retreat.venue, { name: "Peace on the Pond", city: "Douglasville, Georgia" });
+    assert.equal(content.data.retreat.reservationsOpen, false);
+  });
+  await check("Experience photos are a list on the public content", async () => {
+    assert.ok(Array.isArray(content.data.site.experience.photos));
   });
   await check("Unapproved activities (including yoni steaming) and portal-only content are not public", async () => {
     assert.equal(content.data.site.experience.activities.length, 0);
@@ -271,13 +280,16 @@ async function signInGuest(c, email) {
     const ev = log.find((a) => a.action === "room.price_changed" && a.entity_id === ob.id);
     assert.ok(ev, "no audit event"); assert.equal(ev.before.price_cents, 289900); assert.equal(ev.after.price_cents, 289950);
     assert.match(ev.actor_label, /Estar/);
+    assert.ok(log.find((a) => a.action === "retreat.confirmed_details" && a.actor_label === "migration"), "no migration audit event");
     await owner.admin("room-save", { ...ob, price_cents: 289900 });
   });
-  await check("Paid launch stays blocked while basis, dates, inventory or terms are unconfirmed", async () => {
+  await check("Paid launch stays blocked while admission, inventory or terms are unconfirmed", async () => {
     const r = await owner.admin("reservations-toggle", { open: true });
     assert.equal(r.status, 400);
     const c = r.data.checklist.items;
-    assert.ok(c.find((i) => i.key === "dates" && !i.ok)); assert.ok(c.find((i) => i.key === "terms" && !i.ok));
+    assert.ok(c.find((i) => i.key === "dates" && i.ok)); assert.ok(c.find((i) => i.key === "venue" && i.ok));
+    assert.ok(c.find((i) => i.key === "terms" && !i.ok));
+    assert.ok(c.find((i) => i.key === "room:room_emerald" && !i.ok && /admission/.test(i.detail) && !/price basis|guest capacity/.test(i.detail)));
     assert.ok(c.find((i) => i.key.startsWith("diff:") && /Emerald/.test(i.label) && /Obsidian/.test(i.label)), "Emerald vs Obsidian difference check missing");
   });
 
