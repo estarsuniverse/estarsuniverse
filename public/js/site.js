@@ -158,7 +158,6 @@
           ${row("Guests", cap)}
           ${row("Beds", rm.beds)}
           ${row("Bathroom", rm.bathroom)}
-          ${row("Privacy", rm.privacy)}
           ${row("Features", rm.features)}
           ${row("Accessibility", rm.accessibility)}
         </dl>

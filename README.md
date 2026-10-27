@@ -49,7 +49,7 @@ Paid reservations are built in Phase 2. They can only open after the launch chec
 | Table | Purpose |
 | --- | --- |
 | `retreats` | Dates, venue, timezone, payment terms, launch flags |
-| `room_types` | Price (cents), price basis, capacity, beds, bathroom, privacy, photos |
+| `room_types` | Price (cents), price basis, capacity, beds, bathroom, accessibility, photos |
 | `inventory_units` | Each sellable room or bed space |
 | `holds` | Expiring holds (Phase 2). A unique index allows one active hold per unit, so two buyers can never get the same unit |
 | `waitlist_entries` | Name, email, room preference, intention, source, tags, consent version. Unique per retreat and email |
@@ -108,7 +108,7 @@ Neon keeps point-in-time history of the database, and you can restore to an earl
 ```bash
 npm install
 npm run dev          # http://localhost:3000 (in-memory Postgres, fake email)
-npm test             # 44 end-to-end acceptance checks
+npm test             # 45 end-to-end acceptance checks
 ```
 
 Local testing works like this:
@@ -162,15 +162,12 @@ All of these can be edited in the admin area. Text in `[square brackets]` is hig
 - ~~**Price basis.**~~ **Done:** every room is priced per guest.
 - ~~**Guest capacities.**~~ **Done:** Sapphire 1, Tiger’s Eye 2, Emerald 2, Obsidian 2, Moonstone 3, each sofa bed 2.
 - ~~**Event photos.**~~ **Done:** ten photos from Estar’s past gatherings are in The Experience gallery (`public/media/events/`, `migrations/003_event_photos.sql`). Edit them in Content and Branding, then The Experience, then Photos. Confirm everyone pictured has agreed to appear on the site.
+- ~~**Beds, bathrooms and accessibility.**~~ **Done** for the bedrooms (`migrations/007_room_beds_bathrooms.sql`). Room privacy is no longer shown.
 - **Room details.** For each room:
   - whether admission is included
-  - actual beds
-  - bathroom
-  - privacy
-  - accessibility
   - inventory
   - Moonstone's features
-  - sofa-bed privacy
+  - sofa-bed bathroom and accessibility
   - the Emerald and Obsidian difference note (they are the same room type with the same features; the $100 price gap is waiting on the client's decision)
 - **Payment terms.** Taxes, fees, deposit, installments, cancellation, transfer and refunds (Bookings and Payments).
 - **Day pass.** Whether to sell one, and at what price.

@@ -25,7 +25,7 @@ Only owners can:
 - **Waiting List.** Search and filter by room, consent, status or source. Click **Edit** to change status or add private notes. **Export CSV** gives everyone. **Export marketing list** gives only people who agreed to updates.
 - **Clients.** Everyone on the list or with a portal account. **Send portal invitation** emails them a link to sign in. To change someone's email, first confirm the request with them from their current address. Then an owner uses **Change email**.
 - **Rooms and Inventory.** Click a room to edit it.
-  - Fill in price basis, capacity, beds, bathroom, privacy and accessibility, and upload real photos with a short description of each.
+  - Fill in price basis, capacity, beds, bathroom and accessibility, and upload real photos with a short description of each.
   - Each **inventory unit** is one real room or bed space you can sell.
   - When everything is checked, the room shows **Ready to sell**.
 - **Bookings and Payments.**

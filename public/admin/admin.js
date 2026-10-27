@@ -329,7 +329,6 @@
           <label>Guest capacity${ownerNote()} <span class="hint">(blank = to confirm)</span><input type="number" name="guest_capacity" min="1" max="20" value="${r.guest_capacity ?? ""}" ${own}></label>
           ${txt("beds", "Actual beds", r.beds, { hint: "e.g. One queen bed" })}
           ${txt("bathroom", "Bathroom access", r.bathroom, { hint: "e.g. Private en suite" })}
-          ${txt("privacy", "Privacy", r.privacy, { hint: "e.g. Lockable door" })}
           ${txt("features", "Features", r.features)}
           <label>Display order<input type="number" name="sort" value="${r.sort ?? 0}" min="0" max="10000"></label>
           ${txt("accessibility", "Accessibility details", r.accessibility, { wide: true, area: true })}
@@ -384,7 +383,7 @@
           id: id || undefined, name: fd.get("name"), sort: fd.get("sort"), price_cents: price,
           price_basis: isOwner() ? fd.get("price_basis") : room.price_basis, includes_admission: isOwner() ? fd.get("includes_admission") : room.includes_admission,
           occupancy_label: fd.get("occupancy_label"), guest_capacity: isOwner() ? fd.get("guest_capacity") : room.guest_capacity,
-          beds: fd.get("beds"), bathroom: fd.get("bathroom"), privacy: fd.get("privacy"), features: fd.get("features"), accessibility: fd.get("accessibility"),
+          beds: fd.get("beds"), bathroom: fd.get("bathroom"), features: fd.get("features"), accessibility: fd.get("accessibility"),
           difference_note: fd.get("difference_note"), description: fd.get("description"), photos: S.roomPhotos[id],
           visible: f.visible.checked, inventory_confirmed: isOwner() ? f.inventory_confirmed.checked : Boolean(room.inventory_confirmed),
         };

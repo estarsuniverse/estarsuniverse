@@ -92,6 +92,16 @@ async function signInGuest(c, email) {
       for (const p of r.photos) { assert.ok(p.alt && p.alt.length > 20, p.url); assert.equal((await fetch(BASE + p.url)).status, 200, p.url); }
     }
   });
+  await check("Beds, bathrooms and accessibility match the confirmed details; room privacy is not shown", async () => {
+    const by = Object.fromEntries(content.data.rooms.map((r) => [r.name, r]));
+    assert.equal(by["Sapphire"].beds, "1 queen bed"); assert.equal(by["Moonstone"].beds, "3 queen beds");
+    for (const n of ["Tiger’s Eye", "Emerald", "Obsidian"]) assert.equal(by[n].beds, "2 queen beds", n);
+    for (const n of ["Sapphire", "Tiger’s Eye", "Emerald", "Obsidian"]) assert.match(by[n].bathroom, /^Private en suite/, n);
+    assert.equal(by["Moonstone"].bathroom, "Detached shared full bathroom");
+    for (const n of ["Emerald", "Moonstone"]) assert.match(by[n].accessibility, /^Downstairs/, n);
+    for (const n of ["Sapphire", "Tiger’s Eye", "Obsidian"]) assert.equal(by[n].accessibility, "Upstairs.", n);
+    for (const r of content.data.rooms) assert.ok(!("privacy" in r), r.name);
+  });
   await check("Confirmed dates and venue are public; reservations closed", async () => {
     assert.deepEqual(content.data.retreat.dates, { start: "March 6, 2027", end: "March 10, 2027", nights: 4 });
     assert.deepEqual(content.data.retreat.venue, { name: "Peace on the Pond", city: "Douglasville, Georgia" });
