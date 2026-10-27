@@ -79,7 +79,7 @@ async function signInGuest(c, email) {
     assert.deepEqual(got, want);
   });
   await check("Prices are per guest and capacities match the confirmed details; admission stays unconfirmed", async () => {
-    const want = { "Sapphire": 1, "Tiger’s Eye": 2, "Emerald": 2, "Obsidian": 2, "Moonstone": 3, "Downstairs queen sofa bed 1": 2, "Downstairs queen sofa bed 2": 2 };
+    const want = { "Sapphire": 1, "Tiger’s Eye": 2, "Emerald": 2, "Obsidian": 2, "Moonstone": 3, "Downstairs queen sofa bed 1": 1, "Downstairs queen sofa bed 2": 1 };
     for (const r of content.data.rooms) {
       assert.equal(r.price_basis, "per_guest"); assert.equal(r.guest_capacity, want[r.name], r.name);
       assert.equal(r.includes_admission, "unconfirmed"); assert.equal(r.difference_note, ""); assert.equal(r.availability, "waitlist");
@@ -101,6 +101,7 @@ async function signInGuest(c, email) {
     for (const n of ["Emerald", "Moonstone"]) assert.match(by[n].accessibility, /^Downstairs/, n);
     for (const n of ["Sapphire", "Tiger’s Eye", "Obsidian"]) assert.equal(by[n].accessibility, "Upstairs.", n);
     for (const r of content.data.rooms) assert.ok(!("privacy" in r), r.name);
+    assert.match(content.data.site.stay.sharedNote, /No one shares a bed/);
   });
   await check("Confirmed dates and venue are public; reservations closed", async () => {
     assert.deepEqual(content.data.retreat.dates, { start: "March 6, 2027", end: "March 10, 2027", nights: 4 });
