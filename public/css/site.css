@@ -84,7 +84,8 @@ section { padding: clamp(64px, 9vw, 112px) 0; }
 .rhythm { margin: 36px 0 0; padding-left: 20px; border-left: 3px solid var(--gold); font-family: var(--serif); font-style: italic; font-size: clamp(18px, 2vw, 21px); line-height: 1.6; max-width: 62ch; color: var(--olive-deep); }
 
 /* Investment summary */
-.investment { background: var(--tint); }
+.investment { background: var(--bg); border-top: 1px solid var(--line); }
+.investment + .stay { border-top: 1px solid var(--line); }
 .investment h2 { color: var(--olive); }
 .inv-block { margin-top: 28px; }
 .inv-block h3, .immersions h3 { font-size: 22px; }

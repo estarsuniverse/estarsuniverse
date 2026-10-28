@@ -7,10 +7,10 @@ The admin follows the landing page: what guests see, what they can buy, and what
 ## The tabs
 
 - **Overview.** Whether Secure your spot is open, tickets sold, money collected, balances still due, every ticket option with how many are left, and the checklist that has to be complete before payments can be turned on.
-- **Landing page.** Every section of the public page, in the same order as the page (the numbered buttons at the top jump to each one): logo and header, hero and introduction, What you'll take home, the grounds, The Experience, Investment, Your Stay, day immersion wording, Itinerary, Meet Estar, FAQs, testimonials and policies, contact, and Secure your spot with the Book a call link.
+- **Landing page.** Every section of the public page, in the same order as the page (the numbered buttons at the top jump to each one): logo and header, hero and introduction, What you’ll take home, The Experience, the grounds, Investment, Your Stay, day immersion wording, Itinerary, Meet Estar, FAQs, testimonials and policies, contact, and Secure your spot with the Book a call link.
 - **Tickets.** What guests can choose under Secure your spot.
   - **Rooms.** Click a room to edit its price, tickets, beds, bathroom, features, accessibility, description and photos. A room has **one ticket per guest**, so Moonstone (3 guests) has 3 tickets. Untick **Show on the public page** to stop offering a room (the sofa beds are hidden this way).
-  - **Day immersions.** Name, days, price, optional early-bird price and optional ticket limit (blank means no limit). Day immersions are always paid in full.
+  - **Day immersions.** Name, days, price, optional early-bird price with its last day, and optional ticket limit (blank means no limit). After the early bird’s last day, the page shows only the standard price. Day immersions are always paid in full.
   - Each room and immersion shows how many tickets are sold. When they're all sold, it shows as sold out on the page and can't be chosen.
 - **Payments.**
   - **Secure your spot is open/closed.** The checklist, and **Turn payments on**, which works once everything is complete. While it's off, the button on the page says "Payments open soon."

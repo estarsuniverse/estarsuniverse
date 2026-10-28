@@ -162,12 +162,15 @@
     $("dock-text").textContent = r.reservationsOpen ? "Reservations are open" : "Reservations open soon";
   }
 
+  const longDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const shortDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
   function immersionsHtml(list, c) {
     if (!list.length) return "";
     return `<div class="immersions"><h3>${mark(c.heading || "Day immersions")}</h3>${c.intro ? `<p class="imm-intro">${mark(c.intro)}</p>` : ""}
       <div class="imm-grid">${list.map((i) => `<div class="imm-card"><h4>${esc(i.name)}</h4>
         <p class="imm-price"><strong>${money(i.price_cents)}</strong>${i.days ? ` <small>${i.days} ${i.days === 1 ? "day" : "days"}, per guest</small>` : ""}</p>
-        ${i.early_bird_price_cents != null ? `<p class="imm-eb"><span class="pill olive">${esc(c.earlyBirdLabel || "Early bird")}</span> ${money(i.early_bird_price_cents)}</p>` : ""}</div>`).join("")}</div>
+        ${i.early_bird_price_cents != null ? `<p class="imm-eb"><span class="pill olive">${esc(c.earlyBirdLabel || "Early bird")}</span> ${money(i.early_bird_price_cents)}${i.early_bird_ends ? ` <small>until ${esc(longDate(i.early_bird_ends))}</small>` : ""}</p>` : ""}</div>`).join("")}</div>
       ${c.includes ? `<p>${mark(c.includes)}</p>` : ""}${c.note ? `<p class="imm-note">${mark(c.note)}</p>` : ""}
       ${list.some((i) => i.early_bird_price_cents != null) && c.earlyBirdNote ? `<p class="imm-note">${mark(c.earlyBirdNote)}</p>` : ""}</div>`;
   }
@@ -261,10 +264,10 @@
     $("rs-intro").innerHTML = mark(c.intro); $("rs-intro").hidden = !c.intro;
     rs.opts = d.rooms.map((rm) => ({ id: rm.id, room: true, name: rm.name, price: rm.price_cents, early: null,
       meta: [guests(rm.guest_capacity), rm.beds].filter(Boolean).join(" · "), sold: rm.availability === "sold_out" }))
-      .concat((r.immersions || []).map((i) => ({ id: i.id, room: false, name: i.name, price: i.price_cents, early: i.early_bird_price_cents,
+      .concat((r.immersions || []).map((i) => ({ id: i.id, room: false, name: i.name, price: i.early_bird_price_cents ?? i.price_cents, standard: i.price_cents, early: i.early_bird_price_cents, earlyEnds: i.early_bird_ends,
         meta: `${i.days ? `${i.days} ${i.days === 1 ? "day" : "days"}, ` : ""}no overnight stay`, sold: Boolean(i.sold_out) })));
     const opt = (o) => `<option value="${esc(o.id)}" ${o.sold ? "disabled" : ""}>${esc(o.name)} · ${o.sold ? "Sold out"
-      : `${money(o.price)} per guest${o.early != null ? ` (early bird ${money(o.early)})` : ""}`}</option>`;
+      : `${money(o.price)} per guest${o.early != null ? ` (early bird${o.earlyEnds ? ` until ${shortDate(o.earlyEnds)}` : ""}, then ${money(o.standard)})` : ""}`}</option>`;
     const rooms = rs.opts.filter((o) => o.room), imms = rs.opts.filter((o) => !o.room);
     $("rs-option").insertAdjacentHTML("beforeend", `<optgroup label="Residential stays">${rooms.map(opt).join("")}</optgroup>`
       + (imms.length ? `<optgroup label="Day immersions">${imms.map(opt).join("")}</optgroup>` : ""));
@@ -295,7 +298,7 @@
     const amount = { deposit: money(dep), full: money(o.price) };
     rs.planNote = {
       deposit: `The balance of ${money(o.price - dep)} is paid in installments before the retreat.`,
-      full: o.early != null ? `Early-bird price of ${money(o.early)} while it lasts.` : "",
+      full: o.early != null ? `Early-bird price${o.earlyEnds ? ` until ${longDate(o.earlyEnds)}` : " while it lasts"}; ${money(o.standard)} after that.` : "",
     };
     $("rs-plan").innerHTML = plans.map((p) => `<option value="${p}" ${p === rs.plan ? "selected" : ""}>${esc(label[p])}${p === "deposit" ? ` (${pct}%)` : ""}: ${amount[p]}</option>`).join("");
     $("rs-plan").onchange = (e) => { rs.plan = e.target.value; updatePay(); };

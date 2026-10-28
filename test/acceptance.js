@@ -109,9 +109,14 @@ class Client {
     for (const u of [b.logoUrl, b.logoDarkUrl, content.data.site.host.photoUrl, "/media/brand/favicon.png"]) assert.equal((await fetch(BASE + u)).status, 200, u);
     assert.equal(b.logoUrl, "/media/brand/logo-light.png"); assert.equal(b.logoDarkUrl, "/media/brand/logo-dark.png");
   });
-  await check("Day immersions are public with standard and early-bird prices", async () => {
-    assert.deepEqual(content.data.retreat.immersions.map((i) => [i.name, i.days, i.price_cents, i.early_bird_price_cents]),
-      [["One-Day Immersion", 1, 44400, 33300], ["Two-Day Immersion", 2, 66600, 55500]]);
+  await check("Day immersions are public with standard and early-bird prices; the early bird ends December 12, 2026", async () => {
+    assert.deepEqual(content.data.retreat.immersions.map((i) => [i.name, i.days, i.price_cents, i.early_bird_price_cents, i.early_bird_ends]),
+      [["One-Day Immersion", 1, 44400, 33300, "2026-12-12"], ["Two-Day Immersion", 2, 66600, 55500, "2026-12-12"]]);
+    assert.match(content.data.site.immersions.earlyBirdNote, /ends December 12, 2026\.$/);
+    const { earlyBirdPrice } = require("../lib/retreat");
+    const imm = { early_bird_price_cents: 33300, early_bird_ends: "2026-12-12" };
+    assert.equal(earlyBirdPrice(imm, "America/New_York", new Date("2026-12-13T04:30:00Z")), 33300, "still Dec 12 in Georgia");
+    assert.equal(earlyBirdPrice(imm, "America/New_York", new Date("2026-12-13T05:30:00Z")), null, "Dec 13 in Georgia: early bird over");
     assert.match(content.data.site.immersions.includes, /ceremonies, embodiment practices, workshops, sisterhood gatherings and meals/);
     assert.ok(content.data.site.faqs.some((f) => f.id === "f11" && /without staying overnight/.test(f.q)));
   });
@@ -347,7 +352,9 @@ class Client {
     const imms = (await owner.admin("rooms-list")).data.immersions.map((i) => (i.id === "imm_one_day" ? { ...i, ticket_limit: 1 } : i));
     assert.equal((await owner.admin("immersions-save", { enabled: true, immersions: imms })).status, 200);
     assert.equal((await visitor.get("/api/site?fn=content")).data.retreat.immersions.find((i) => i.id === "imm_one_day").sold_out, false);
-    assert.equal((await owner.admin("sale-save", { option_id: "imm_one_day", guest_name: "Day Guest", plan: "full", first_payment_cents: 44400 })).status, 200);
+    const sold = await owner.admin("sale-save", { option_id: "imm_one_day", guest_name: "Day Guest", plan: "full", first_payment_cents: 33300 });
+    assert.equal(sold.status, 200);
+    assert.equal((await owner.admin("sales-list")).data.sales.find((x) => x.id === sold.data.id).total_cents, 33300, "sold at the early-bird price");
     assert.equal((await visitor.get("/api/site?fn=content")).data.retreat.immersions.find((i) => i.id === "imm_one_day").sold_out, true);
     assert.equal((await owner.admin("sale-save", { option_id: "imm_one_day", guest_name: "Late Guest", plan: "full" })).status, 400);
     assert.equal((await owner.admin("rooms-list")).data.immersions.find((i) => i.id === "imm_one_day").sold, 1);

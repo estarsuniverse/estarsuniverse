@@ -211,7 +211,7 @@
       isOwner() ? '<button class="btn btn-primary" id="add-room">Add a room</button>' : "")
       + `<div class="okbox small">Prices are stored exactly as entered and are per guest. A room sells out when all of its tickets (guests) are sold; hide a room to stop offering it.</div>
       <div id="new-room"></div>${d.rooms.map((r) => roomForm(r, d.basisLabels)).join("")}
-      <div class="panel"><h2>Day immersions${ownerNote()}</h2><p class="small muted">For guests who join without staying overnight; always paid in full. Leave the ticket limit blank for no limit, and the early-bird price blank to offer only the standard price. Their wording is edited in Landing page.</p>
+      <div class="panel"><h2>Day immersions${ownerNote()}</h2><p class="small muted">For guests who join without staying overnight; always paid in full. Leave the ticket limit blank for no limit, and the early-bird price blank to offer only the standard price. After the early bird’s last day, the page shows only the standard price. Their wording is edited in Landing page.</p>
         <form class="form" id="imm-form" novalidate><label class="check"><input type="checkbox" name="enabled" ${d.immersions_enabled ? "checked" : ""} ${isOwner() ? "" : "disabled"}> Offer day immersions</label>
           <div id="imm"></div>${isOwner() ? '<div class="row"><button type="button" class="iconbtn" id="imm-add">Add immersion</button><button class="btn btn-primary" type="submit">Save day immersions</button></div>' : ""}</form></div>`;
     S.imm = (d.immersions || []).map((x) => ({ ...x }));
@@ -324,7 +324,7 @@
     S.inst = (t.installments || []).map((x) => ({ ...x }));
     const ta = (name, label, hint) => `<label class="wide">${label}${hint ? ` <span class="hint">${hint}</span>` : ""}<textarea name="${name}" maxlength="4000" ${own}>${esc(t[name] || "")}</textarea></label>`;
     const pct = sl.deposit_percent;
-    const optLabel = (o) => `${o.name} · ${money(o.price_cents)}${o.tickets != null ? ` · ${o.left} left` : ""}`;
+    const optLabel = (o) => `${o.name} · ${money(o.price_cents)}${o.early_bird ? " early bird" : ""}${o.tickets != null ? ` · ${o.left} left` : ""}`;
     const forSale = sl.options.filter((o) => o.visible);
     v.innerHTML = head("Payments", "Record each guest’s payment, track balances, and set where the Secure your spot button sends guests.", '<button class="btn btn-outline" id="sales-csv">Export CSV</button>')
       + `<div class="panel"><h2>Secure your spot is ${r.reservations_open ? "open" : "closed"}</h2>
@@ -496,11 +496,13 @@
       <label>Days<input type="number" name="imm_days_${n}" data-k="days" min="1" max="14" value="${i.days ?? ""}" ${own}></label>
       <label>Price<div class="money">$<input type="text" name="imm_price_${n}" data-k="price" inputmode="decimal" value="${dollars(i.price_cents)}" ${own}></div></label>
       <label>Early-bird price <span class="hint">(optional)</span><div class="money">$<input type="text" name="imm_eb_${n}" data-k="eb" inputmode="decimal" value="${dollars(i.early_bird_price_cents)}" ${own}></div></label>
+      <label>Early bird ends <span class="hint">(last day)</span><input type="date" name="imm_ebend_${n}" data-k="ebend" value="${esc(i.early_bird_ends || "")}" ${own}></label>
       <label>Ticket limit <span class="hint">(blank = no limit; ${i.sold || 0} sold)</span><input type="number" name="imm_limit_${n}" data-k="limit" min="0" max="10000" value="${i.ticket_limit ?? ""}" ${own}></label>
       ${isOwner() ? `<div style="align-self:end"><button type="button" class="iconbtn" data-mrm="${n}">Remove</button></div>` : ""}</div>`).join("") : '<p class="small muted">No immersions yet.</p>';
     box.querySelectorAll("[data-m]").forEach((row) => row.querySelectorAll("[data-k]").forEach((inp) => (inp.oninput = () => {
       const it = S.imm[+row.dataset.m], k = inp.dataset.k;
       if (k === "price") it.price_cents = toCents(inp.value); else if (k === "eb") it.early_bird_price_cents = toCents(inp.value);
+      else if (k === "ebend") it.early_bird_ends = inp.value || null;
       else if (k === "days" || k === "limit") it[k === "days" ? "days" : "ticket_limit"] = inp.value === "" ? null : Number(inp.value); else it[k] = inp.value;
     })));
     box.querySelectorAll("[data-mrm]").forEach((b) => (b.onclick = () => { S.imm.splice(+b.dataset.mrm, 1); S.unsaved = true; renderImm(); }));
@@ -554,7 +556,7 @@
   }
 
   // ---------- Landing page: every section, in the same order as the page ----------
-  const PAGE_SECTIONS = ["Logo and header", "Hero and introduction", "What you’ll take home", "The grounds", "The Experience", "Investment", "Your Stay", "Day immersions (wording)", "Itinerary", "Meet Estar", "FAQs", "Testimonials and policies", "Contact", "Secure your spot and Book a call"];
+  const PAGE_SECTIONS = ["Logo and header", "Hero and introduction", "What you’ll take home", "The Experience", "The grounds", "Investment", "Your Stay", "Day immersions (wording)", "Itinerary", "Meet Estar", "FAQs", "Testimonials and policies", "Contact", "Secure your spot and Book a call"];
   async function vPage(v, keep) {
     if (!keep) await loadContent();
     const y = window.scrollY;
@@ -571,9 +573,7 @@
         <p class="small muted">Dates and location are set in Settings and appear only once marked confirmed.</p></div>
       <div class="panel" id="pg-3"><h2>What you’ll take home</h2><p class="small muted">Shown under the overview once it has at least one item.</p><div class="fgrid">${F.text("transformation.heading", "Heading")}${F.text("transformation.intro", "Introduction", { wide: true, area: true })}
         ${repeat("transformation.items", "Items", (p) => `${F.text(`${p}.title`, "Title")}${F.text(`${p}.text`, "Text", { wide: true, area: true, rows: 2 })}`, { id: "", title: "", text: "" }, "Add item")}</div></div>
-      <div class="panel" id="pg-4"><h2>The grounds</h2><p class="small muted">The first six photos make the gallery mosaic; all of them open in the photo viewer. Use only photos approved for this retreat.</p><div class="fgrid">${F.text("grounds.heading", "Heading")}${F.text("grounds.intro", "Introduction", { wide: true, area: true })}
-        ${repeat("grounds.photos", "Photos", (p) => `${F.image(`${p}.url`, "Photo")}${F.text(`${p}.caption`, "Caption")}${F.text(`${p}.alt`, "Description for screen readers", { wide: true })}`, { id: "", url: "", caption: "", alt: "" }, "Add photo")}</div></div>
-      <div class="panel" id="pg-5"><h2>The Experience</h2><div class="fgrid">${F.text("experience.heading", "Heading")}${F.text("experience.welcomes", "Who the retreat welcomes", { wide: true, area: true })}${F.text("experience.participation", "Participation note", { wide: true, area: true, hint: "Keep: participation and touch are always optional" })}
+      <div class="panel" id="pg-4"><h2>The Experience</h2><div class="fgrid">${F.text("experience.heading", "Heading")}${F.text("experience.welcomes", "Who the retreat welcomes", { wide: true, area: true })}${F.text("experience.participation", "Participation note", { wide: true, area: true, hint: "Keep: participation and touch are always optional" })}
         ${F.lines("experience.inclusions", "Included")}${F.lines("experience.exclusions", "Not included")}${F.text("experience.pendingNote", "Shown while no sessions are published", { wide: true })}
         ${F.text("experience.rhythm", "Pace of the days", { wide: true, area: true, hint: "Shown under the sessions. Leave blank to hide" })}
         ${repeat("experience.photos", "Photos", (p) => `${F.image(`${p}.url`, "Photo")}${F.text(`${p}.caption`, "Caption")}${F.text(`${p}.alt`, "Description for screen readers", { wide: true })}`, { id: "", url: "", caption: "", alt: "" }, "Add photo")}
@@ -581,6 +581,8 @@
         ${repeat("experience.activities", "Sessions and rituals", (p, a) => `${F.text(`${p}.title`, "Title")}${F.text(`${p}.note`, "Note")}${F.text(`${p}.description`, "Description", { wide: true, area: true, rows: 2 })}
           ${a.reviewRequired ? `<div class="wide warn">Held back pending a separate safety and suitability review. It can’t be published until the owner records that the review is complete.</div>${F.bool(`${p}.reviewDone`, `Safety and suitability review completed${isOwner() ? "" : " (owner only)"}`, { dis: own })}` : ""}
           ${F.bool(`${p}.published`, "Publish (owner-approved, facilitators and delivery confirmed)")}`, { id: "", title: "", description: "", note: "", published: false }, "Add session")}</div></div>
+      <div class="panel" id="pg-5"><h2>The grounds</h2><p class="small muted">The first six photos make the gallery mosaic; all of them open in the photo viewer. Use only photos approved for this retreat.</p><div class="fgrid">${F.text("grounds.heading", "Heading")}${F.text("grounds.intro", "Introduction", { wide: true, area: true })}
+        ${repeat("grounds.photos", "Photos", (p) => `${F.image(`${p}.url`, "Photo")}${F.text(`${p}.caption`, "Caption")}${F.text(`${p}.alt`, "Description for screen readers", { wide: true })}`, { id: "", url: "", caption: "", alt: "" }, "Add photo")}</div></div>
       <div class="panel" id="pg-6"><h2>Investment</h2><p class="small muted">A short list of every room and immersion with its price, shown before Your Stay once it has a heading. Prices come from Tickets.</p><div class="fgrid">${F.text("investments.heading", "Heading", { hint: "Leave blank to hide the section" })}${F.text("investments.intro", "What every room includes", { wide: true, area: true })}${F.text("investments.paymentNote", "Deposit and payment plan", { wide: true, area: true })}</div></div>
       <div class="panel" id="pg-7"><h2>Your Stay</h2><div class="fgrid">${F.text("stay.heading", "Heading")}${F.text("stay.intro", "Introduction", { wide: true, area: true })}${F.text("stay.sharedNote", "Shared room note", { wide: true, area: true })}</div><p class="small muted">Room details, prices and photos are edited in Tickets.</p></div>
       <div class="panel" id="pg-8"><h2>Day immersions (wording)</h2><p class="small muted">The wording around the immersions. Their names, prices and ticket limits are set in Tickets.</p><div class="fgrid">${F.text("immersions.heading", "Heading")}${F.text("immersions.earlyBirdLabel", "Early-bird label")}${F.text("immersions.intro", "Introduction", { wide: true, area: true, rows: 2 })}${F.text("immersions.includes", "What’s included", { wide: true, area: true, rows: 2 })}${F.text("immersions.note", "Note", { wide: true })}${F.text("immersions.earlyBirdNote", "Early-bird note", { wide: true, area: true, rows: 2, hint: "Shown when an immersion has an early-bird price" })}</div></div>
