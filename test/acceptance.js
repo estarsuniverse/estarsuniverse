@@ -71,18 +71,18 @@ async function signInGuest(c, email) {
 
   // ---------- Public page and prices ----------
   let content;
-  await check("Public content loads; all 7 room prices match the brief exactly", async () => {
+  await check("Public content loads; all 7 room prices are exact (Emerald and Obsidian aligned at $2,799)", async () => {
     content = await visitor.get("/api/site?fn=content");
     assert.equal(content.status, 200);
-    const want = { "Sapphire": 319900, "Tiger’s Eye": 299900, "Emerald": 279900, "Obsidian": 289900, "Moonstone": 269900, "Downstairs queen sofa bed 1": 111100, "Downstairs queen sofa bed 2": 111100 };
+    const want = { "Sapphire": 319900, "Tiger’s Eye": 299900, "Emerald": 279900, "Obsidian": 279900, "Moonstone": 269900, "Downstairs queen sofa bed 1": 111100, "Downstairs queen sofa bed 2": 111100 };
     const got = Object.fromEntries(content.data.rooms.map((r) => [r.name, r.price_cents]));
     assert.deepEqual(got, want);
   });
-  await check("Prices are per guest and capacities match the confirmed details; admission stays unconfirmed", async () => {
+  await check("Prices are per guest, include the full retreat, and capacities match the confirmed details", async () => {
     const want = { "Sapphire": 1, "Tiger’s Eye": 2, "Emerald": 2, "Obsidian": 2, "Moonstone": 3, "Downstairs queen sofa bed 1": 1, "Downstairs queen sofa bed 2": 1 };
     for (const r of content.data.rooms) {
       assert.equal(r.price_basis, "per_guest"); assert.equal(r.guest_capacity, want[r.name], r.name);
-      assert.equal(r.includes_admission, "unconfirmed"); assert.equal(r.difference_note, ""); assert.equal(r.availability, "waitlist");
+      assert.equal(r.includes_admission, "yes"); assert.equal(r.difference_note, ""); assert.equal(r.availability, "waitlist");
     }
   });
   await check("Room photos load, with descriptions", async () => {
@@ -120,10 +120,23 @@ async function signInGuest(c, email) {
     for (const p of photos) assert.equal((await fetch(BASE + p.url)).status, 200, p.url);
     assert.ok(!/approved for this retreat/.test(content.data.site.grounds.intro), "venue photo approval note still shown");
   });
-  await check("Unapproved activities (including yoni steaming) and portal-only content are not public", async () => {
-    assert.equal(content.data.site.experience.activities.length, 0);
+  await check("Estar's seven experiences are public; nothing held back (such as yoni steaming) or portal-only is", async () => {
+    const titles = content.data.site.experience.activities.map((a) => a.title);
+    assert.equal(titles.length, 7); assert.ok(titles.includes("Sensual Embodiment Workshop")); assert.ok(titles.includes("Rest, nourishment, and communion with nature"));
     assert.equal(content.data.site.portal, undefined);
     assert.ok(!JSON.stringify(content.data).toLowerCase().includes("yoni"));
+    assert.match(content.data.site.host.bio, /^ESTAR is a multidisciplinary artist, Singing Yogini/);
+  });
+  await check("Day immersions are public with standard and early-bird prices", async () => {
+    assert.deepEqual(content.data.retreat.immersions.map((i) => [i.name, i.days, i.price_cents, i.early_bird_price_cents]),
+      [["One-Day Immersion", 1, 44400, 33300], ["Two-Day Immersion", 2, 66600, 55500]]);
+    assert.match(content.data.site.immersions.includes, /ceremonies, embodiment practices, workshops, sisterhood gatherings and meals/);
+    assert.ok(content.data.site.faqs.some((f) => f.id === "f11" && /without staying overnight/.test(f.q)));
+  });
+  await check("Payment terms: deposit and installments are in the FAQs, but the terms stay unconfirmed and off the page", async () => {
+    assert.equal(content.data.retreat.terms, null);
+    assert.match(content.data.site.faqs.find((f) => f.id === "f8").a, /30% deposit/);
+    assert.match(content.data.site.faqs.find((f) => f.id === "f9").a, /^Deposits are nonrefundable/);
   });
   await check("Draft preview is refused without an admin session", async () => {
     const r = await visitor.get("/api/site?fn=content&preview=1");
@@ -143,6 +156,10 @@ async function signInGuest(c, email) {
     assert.match(r.data.message, /does not reserve a room or require payment/);
     const mails = (await outbox()).filter((m) => m.to.includes("ama@example.com"));
     assert.equal(mails.length, 1); assert.match(mails[0].subject, /waiting list/i);
+  });
+  await check("Waiting list: a day immersion can be chosen; an unknown choice becomes 'not sure yet'", async () => {
+    assert.equal((await joinWaitlist(new Client(), { name: "Day Guest", email: "dayguest@example.com", room_pref: "imm_two_day" })).status, 200);
+    assert.equal((await joinWaitlist(new Client(), { name: "Odd Choice", email: "oddchoice@example.com", room_pref: "imm_made_up" })).status, 200);
   });
   await check("Waiting list: duplicate (different case) gets the same message and no second email or row", async () => {
     const r = await joinWaitlist(new Client(), { name: "Someone Else", email: "AMA@example.com" });
@@ -302,25 +319,40 @@ async function signInGuest(c, email) {
   await check("Owner price change is recorded in the change history", async () => {
     const rooms = (await owner.admin("rooms-list")).data.rooms;
     const ob = rooms.find((r) => r.name === "Obsidian");
-    assert.equal((await owner.admin("room-save", { ...ob, price_cents: 289950 })).status, 200);
+    assert.equal((await owner.admin("room-save", { ...ob, price_cents: 279950 })).status, 200);
     const log = (await owner.admin("audit-list")).data.rows;
     const ev = log.find((a) => a.action === "room.price_changed" && a.entity_id === ob.id);
-    assert.ok(ev, "no audit event"); assert.equal(ev.before.price_cents, 289900); assert.equal(ev.after.price_cents, 289950);
+    assert.ok(ev, "no audit event"); assert.equal(ev.before.price_cents, 279900); assert.equal(ev.after.price_cents, 279950);
     assert.match(ev.actor_label, /Estar/);
     assert.ok(log.find((a) => a.action === "retreat.confirmed_details" && a.actor_label === "migration"), "no migration audit event");
-    await owner.admin("room-save", { ...ob, price_cents: 289900 });
+    assert.ok(log.find((a) => a.action === "room.price_changed" && a.actor_label === "migration" && a.before.price_cents === 289900 && a.after.price_cents === 279900), "no audit event for aligning Obsidian");
+    await owner.admin("room-save", { ...ob, price_cents: 279900 });
   });
-  await check("Paid launch stays blocked while admission, inventory or terms are unconfirmed", async () => {
+  await check("Paid launch stays blocked while inventory or terms are unconfirmed", async () => {
     const r = await owner.admin("reservations-toggle", { open: true });
     assert.equal(r.status, 400);
     const c = r.data.checklist.items;
     assert.ok(c.find((i) => i.key === "dates" && i.ok)); assert.ok(c.find((i) => i.key === "venue" && i.ok));
     assert.ok(c.find((i) => i.key === "terms" && !i.ok));
-    assert.ok(c.find((i) => i.key === "room:room_emerald" && !i.ok && /admission/.test(i.detail) && !/price basis|guest capacity/.test(i.detail)));
-    assert.ok(c.find((i) => i.key.startsWith("diff:") && /Emerald/.test(i.label) && /Obsidian/.test(i.label)), "Emerald vs Obsidian difference check missing");
+    assert.ok(c.find((i) => i.key === "room:room_emerald" && !i.ok && /inventory/.test(i.detail) && !/admission|price basis|guest capacity|bed|photo/.test(i.detail)));
+    assert.ok(!c.find((i) => i.key.startsWith("diff:")), "Emerald and Obsidian share a price, so no difference note is needed");
+    const ret = (await owner.admin("retreat-get")).data.retreat;
+    assert.equal(ret.terms.deposit_percent, 30); assert.equal(ret.terms_confirmed, false);
+    const bad = { ...ret, immersions: [{ id: "imm_x", name: "Test", days: 1, price_cents: 10000, early_bird_price_cents: 20000 }] };
+    const refused = await owner.admin("retreat-save", bad);
+    assert.equal(refused.status, 400); assert.match(refused.data.error, /early-bird price for Test must be lower/);
+    assert.equal((await owner.admin("retreat-save", ret)).status, 200, "saving the retreat keeps its immersions");
+    assert.equal((await owner.admin("retreat-get")).data.retreat.immersions.length, 2);
   });
 
   // ---------- Content ----------
+  await check("New page copy is in the draft only, visible in preview but not on the public page", async () => {
+    const pub = (await visitor.get("/api/site?fn=content")).data.site;
+    assert.equal(pub.investments.heading, ""); assert.equal(pub.transformation.items.length, 0);
+    const pre = (await owner.get("/api/site?fn=content&preview=1")).data.site;
+    assert.equal(pre.investments.heading, "Your investment"); assert.equal(pre.transformation.items.length, 5);
+    assert.match(pre.overview.body, /^Eye am creating a sanctuary/);
+  });
   await check("Admin edits content, previews the draft, then publishes", async () => {
     const d = (await owner.admin("content-get")).data.draft;
     d.hero.title = "Return to yourself. (test edit)";
@@ -330,7 +362,10 @@ async function signInGuest(c, email) {
     assert.equal((await owner.admin("content-publish")).status, 200);
     assert.equal((await visitor.get("/api/site?fn=content")).data.site.hero.title, d.hero.title);
   });
-  await check("Yoni steaming cannot be published until the owner records the safety review", async () => {
+  await check("A held-back session (such as yoni steaming) cannot be published until the owner records the safety review", async () => {
+    const od = (await owner.admin("content-get")).data.draft;
+    od.experience.activities.push({ id: "y1", title: "Yoni steaming", description: "", published: false, reviewRequired: true, reviewDone: false });
+    assert.equal((await owner.admin("content-save", { draft: od })).status, 200);
     const d = (await staff.admin("content-get")).data.draft;
     const y = d.experience.activities.find((a) => /yoni/i.test(a.title));
     y.published = true; y.reviewDone = true; delete y.reviewRequired;

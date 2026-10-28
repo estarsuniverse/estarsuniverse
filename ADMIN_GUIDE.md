@@ -37,7 +37,9 @@ Only owners can:
   - the logo
   - the hero photo and text
   - the grounds gallery
-  - the Experience sessions
+  - the Experience sessions and the note on the pace of the days
+  - "What you'll take home" and the "Your investment" summary (each shows once filled in)
+  - the wording around the day immersions
   - Estar's bio
   - FAQs
   - testimonials
@@ -47,7 +49,7 @@ Only owners can:
   - Edit email templates and preview them.
   - Owners approve and turn emails on.
   - **Delivery history** shows every email. Failed ones retry automatically, or you can click **Retry now**.
-- **Settings and Audit.** Retreat dates, venue, exact address (confirmed guests only), day pass, staff access, connection status and the change history.
+- **Settings and Audit.** Retreat dates, venue, exact address (confirmed guests only), day immersions (names, days, prices and optional early-bird prices; owner only), staff access, connection status and the change history.
 
 ## Draft, preview, publish
 

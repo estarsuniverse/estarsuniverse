@@ -27,6 +27,7 @@
       <ul>
         <li><a href="#overview">Overview</a></li>
         <li><a href="#experience">The Experience</a></li>
+        <li id="tab-inv" hidden><a href="#investment">Investment</a></li>
         <li><a href="#stay">Your Stay</a></li>
         <li><a href="#itinerary">Itinerary</a></li>
         <li><a href="#host" id="tab-host">Meet Estar</a></li>
@@ -63,6 +64,13 @@
         <dl class="facts" id="facts"></dl>
       </div>
     </section>
+    <section class="transform" id="transform" hidden>
+      <div class="wrap">
+        <h2 id="tf-heading"></h2>
+        <p class="lede" id="tf-intro"></p>
+        <div class="tf-grid" id="tf-items"></div>
+      </div>
+    </section>
     <section class="grounds" id="grounds" hidden>
       <div class="wrap">
         <h2 id="gr-heading"></h2>
@@ -87,6 +95,17 @@
         <div class="exp-block"><h3>Not included</h3><ul class="ticks minus" id="exp-out"></ul></div>
       </div>
       <div id="exp-activities"></div>
+      <p class="rhythm" id="exp-rhythm" hidden></p>
+    </div>
+  </section>
+
+  <section class="investment" id="investment" hidden>
+    <div class="wrap">
+      <h2 id="inv-heading"></h2>
+      <p class="lede" id="inv-intro"></p>
+      <div class="inv-block"><h3>Residential stays</h3><ul class="inv-rooms" id="inv-rooms"></ul></div>
+      <div id="inv-immersions"></div>
+      <div class="inv-pay" id="inv-pay"></div>
     </div>
   </section>
 
@@ -136,7 +155,7 @@
         <ul class="wl-points">
           <li>Free to join. No payment needed.</li>
           <li>Joining does not reserve a room.</li>
-          <li>We’ll email you when dates and reservations are ready.</li>
+          <li>We’ll email you as soon as reservations open.</li>
         </ul>
       </div>
       <div class="wl-card">
@@ -151,7 +170,7 @@
               <span class="field-error" id="err-email" aria-live="polite"></span>
             </label>
           </div>
-          <label><span>Room preference <span class="req">(optional)</span></span>
+          <label><span><span id="wl-room-label">Room preference</span> <span class="req">(optional)</span></span>
             <select name="room_pref" id="wl-room"><option value="undecided">Not sure yet</option><option value="any">Any room</option></select>
           </label>
           <label><span>A short intention <span class="req">(optional)</span></span>

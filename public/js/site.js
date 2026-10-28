@@ -66,6 +66,16 @@
       fact("Location", r.venue ? esc([r.venue.name, r.venue.city].filter(Boolean).join(", ")) : '<span class="tbd">To be announced</span>') +
       fact("Rooms", r.reservationsOpen ? "Reservations are open" : "Not yet open. Join the waiting list to hear first.");
 
+    // What you'll take home (shown once it has items)
+    const tf = s.transformation || {};
+    const tfItems = (tf.items || []).filter((x) => x.title);
+    if (tfItems.length) {
+      $("transform").hidden = false;
+      $("tf-heading").innerHTML = mark(tf.heading || "What you’ll take home");
+      $("tf-intro").innerHTML = mark(tf.intro); $("tf-intro").hidden = !tf.intro;
+      $("tf-items").innerHTML = tfItems.map((x) => `<div class="tf-item"><h3>${mark(x.title)}</h3>${x.text ? `<p>${mark(x.text)}</p>` : ""}</div>`).join("");
+    }
+
     // Grounds gallery
     const g = s.grounds || {};
     if (gallery(g.photos, "gr-grid", "gr-all")) {
@@ -87,6 +97,7 @@
     $("exp-activities").innerHTML = acts.length
       ? `<h3 style="margin-top:40px">Sessions and rituals</h3><div class="activities">${acts.map((a) => `<div class="activity"><h4>${mark(a.title)}</h4>${a.description ? `<p>${mark(a.description)}</p>` : ""}${a.note ? `<p><em>${mark(a.note)}</em></p>` : ""}</div>`).join("")}</div>`
       : `<p class="lede" style="margin-top:32px">${mark(e.pendingNote || "")}</p>`;
+    $("exp-rhythm").innerHTML = mark(e.rhythm); $("exp-rhythm").hidden = !e.rhythm;
 
     // Stay
     const st = s.stay || {};
@@ -96,8 +107,20 @@
     $("stay-shared").hidden = !st.sharedNote;
     $("rooms").innerHTML = d.rooms.map(roomCard).join("");
     wireRooms();
-    $("daypass").innerHTML = r.dayPass
-      ? `<div class="terms-box"><h3>Day pass</h3><p><strong style="font-family:var(--serif);font-size:24px;font-weight:400">${money(r.dayPass.price_cents)}</strong> for a single day of the retreat, without lodging.</p></div>` : "";
+    // Investment summary (shown once it has a heading); day immersions sit there, or under the rooms without it.
+    const inv = s.investments || {};
+    const showInv = Boolean(inv.heading);
+    $("investment").hidden = !showInv; $("tab-inv").hidden = !showInv;
+    $(showInv ? "inv-immersions" : "daypass").innerHTML = immersionsHtml(r.immersions || [], s.immersions || {});
+    if (showInv) {
+      $("inv-heading").innerHTML = mark(inv.heading);
+      $("inv-intro").innerHTML = mark(inv.intro); $("inv-intro").hidden = !inv.intro;
+      $("inv-rooms").innerHTML = d.rooms.map((rm) => `<li><a href="#room-${esc(rm.id)}"><span class="inv-name">${esc(rm.name)}</span>
+        <span class="inv-meta">${[rm.guest_capacity && `${rm.guest_capacity} ${rm.guest_capacity === 1 ? "guest" : "guests"}`, rm.beds].filter(Boolean).map(esc).join(" · ")}</span>
+        <span class="inv-price">${money(rm.price_cents)} <small>${esc(rm.price_basis_label)}</small></span></a></li>`).join("");
+      $("inv-pay").innerHTML = (inv.paymentNote ? `<p>${mark(inv.paymentNote)}</p>` : "")
+        + `<a class="btn btn-primary" href="#waitlist">${r.reservationsOpen ? "Reserve your place" : "Join the Waiting List"}</a>`;
+    }
     const t = r.terms;
     const termLabels = { deposit_text: "Deposit", installments_text: "Payment schedule", fees_text: "Fees", taxes_text: "Taxes", cancellation_text: "Cancellation", transfer_text: "Transfers", refund_text: "Refunds" };
     $("terms").innerHTML = t && Object.keys(t).length
@@ -138,17 +161,32 @@
     $("wl-consent").innerHTML = mark(w.consentText);
     $("wl-done-msg").innerHTML = mark(w.successMessage);
     const sel = $("wl-room");
-    sel.insertAdjacentHTML("beforeend", d.rooms.map((rm) => `<option value="${esc(rm.id)}">${esc(rm.name)} (${money(rm.price_cents)})</option>`).join(""));
+    const roomOpts = d.rooms.map((rm) => `<option value="${esc(rm.id)}">${esc(rm.name)} (${money(rm.price_cents)})</option>`).join("");
+    const imms = r.immersions || [];
+    sel.insertAdjacentHTML("beforeend", imms.length
+      ? `<optgroup label="Rooms">${roomOpts}</optgroup><optgroup label="Day immersions">${imms.map((i) => `<option value="${esc(i.id)}">${esc(i.name)} (${money(i.price_cents)})</option>`).join("")}</optgroup>`
+      : roomOpts);
+    if (imms.length) $("wl-room-label").textContent = "Room or immersion";
     if (r.reservationsOpen) document.querySelector("#dock .dock-text").textContent = "Reservations are open";
+  }
+
+  function immersionsHtml(list, c) {
+    if (!list.length) return "";
+    return `<div class="immersions"><h3>${mark(c.heading || "Day immersions")}</h3>${c.intro ? `<p class="imm-intro">${mark(c.intro)}</p>` : ""}
+      <div class="imm-grid">${list.map((i) => `<div class="imm-card"><h4>${esc(i.name)}</h4>
+        <p class="imm-price"><strong>${money(i.price_cents)}</strong>${i.days ? ` <small>${i.days} ${i.days === 1 ? "day" : "days"}, per guest</small>` : ""}</p>
+        ${i.early_bird_price_cents != null ? `<p class="imm-eb"><span class="pill olive">${esc(c.earlyBirdLabel || "Early bird")}</span> ${money(i.early_bird_price_cents)}</p>` : ""}</div>`).join("")}</div>
+      ${c.includes ? `<p>${mark(c.includes)}</p>` : ""}${c.note ? `<p class="imm-note">${mark(c.note)}</p>` : ""}
+      ${list.some((i) => i.early_bird_price_cents != null) && c.earlyBirdNote ? `<p class="imm-note">${mark(c.earlyBirdNote)}</p>` : ""}</div>`;
   }
 
   function roomCard(rm) {
     const photos = rm.photos || [];
     const avail = rm.availability === "sold_out" ? '<span class="pill">Sold out</span>' : rm.availability === "open" ? '<span class="pill olive">Reservations open</span>' : '<span class="pill line">Waiting list open</span>';
     const cap = rm.guest_capacity ? `${rm.guest_capacity} ${rm.guest_capacity === 1 ? "guest" : "guests"}` : "";
-    const adm = rm.includes_admission === "yes" ? "Includes retreat admission" : rm.includes_admission === "no" ? "Retreat admission is separate" : "";
+    const adm = rm.includes_admission === "yes" ? "Includes the full retreat experience" : rm.includes_admission === "no" ? "Retreat admission is separate" : "";
     const row = (k, v, fallback) => `<div><dt>${k}</dt><dd>${v ? mark(v) : `<span class="tbd">${fallback || "To be confirmed"}</span>`}</dd></div>`;
-    return `<article class="room" data-room="${esc(rm.id)}">
+    return `<article class="room" id="room-${esc(rm.id)}" data-room="${esc(rm.id)}">
       <div class="room-photo">${photos.length ? `<img src="${esc(photos[0].url)}" alt="${esc(photos[0].alt || rm.name)}" loading="lazy">${photos.length > 1 ? `<span class="count">${photos.length} photos</span>` : ""}` : `<div class="nophoto">Real photos of this room<br>coming soon</div>`}</div>
       ${photos.length > 1 ? `<div class="room-thumbs">${photos.map((p, i) => `<button type="button" aria-pressed="${i === 0}" data-src="${esc(p.url)}" data-alt="${esc(p.alt || rm.name)}" aria-label="Show photo ${i + 1} of ${rm.name}"><img src="${esc(p.url)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
       <div class="room-body">

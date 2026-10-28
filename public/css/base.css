@@ -90,6 +90,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--o
 .footer a { color: var(--bg); }
 .footer-inner { display: flex; justify-content: space-between; gap: 32px; flex-wrap: wrap; align-items: flex-start; }
 .footer .wordmark { font-size: 24px; }
+#foot-brand { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .footer .tag { color: var(--gold); font-family: var(--serif); font-style: italic; margin-top: 6px; }
 .footer-links { display: grid; gap: 6px; text-align: right; font-size: 15px; }
 .footer-fine { margin-top: 32px; font-size: 13px; opacity: .8; }

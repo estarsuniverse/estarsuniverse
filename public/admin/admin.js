@@ -419,6 +419,7 @@
         <div class="panel"><h2>Payment terms${ownerNote()}</h2><p class="small muted">Shown on the public page once confirmed. Bookings keep the terms they were sold with; editing these never changes an existing booking.</p>
           <form class="form" id="terms-form" novalidate><div class="fgrid">
             <label>Deposit amount<div class="money">$<input type="text" name="deposit" inputmode="decimal" value="${dollars(t.deposit_cents)}" ${own}></div></label>
+            <label>Or deposit percent<input type="number" name="deposit_percent" min="1" max="100" value="${t.deposit_percent ?? ""}" ${own}></label>
             ${ta("deposit_text", "Deposit terms")}
             ${ta("fees_text", "Fees", "Any processing or service fees")}
             ${ta("taxes_text", "Taxes")}
@@ -450,7 +451,7 @@
       const fd = new FormData(f);
       const dep = toCents(fd.get("deposit"));
       if (Number.isNaN(dep)) return toast("Enter a valid deposit amount.", true);
-      const body = { deposit_cents: dep, installments: S.inst.map((i) => ({ ...i })), terms_confirmed: f.terms_confirmed.checked, legal_confirmed: f.legal_confirmed.checked };
+      const body = { deposit_cents: dep, deposit_percent: fd.get("deposit_percent"), installments: S.inst.map((i) => ({ ...i })), terms_confirmed: f.terms_confirmed.checked, legal_confirmed: f.legal_confirmed.checked };
       ["deposit_text", "fees_text", "taxes_text", "installments_text", "cancellation_text", "transfer_text", "refund_text"].forEach((k) => (body[k] = fd.get(k)));
       busy(f.querySelector("button[type=submit]"), async () => { await call("terms-save", body); S.unsaved = false; toast("Payment terms saved."); vBookings(v); });
     };
@@ -469,6 +470,23 @@
       if (k === "amount") it.amount_cents = toCents(inp.value); else if (k === "percent") it.percent = inp.value === "" ? null : Number(inp.value); else it[k] = inp.value;
     })));
     box.querySelectorAll("[data-irm]").forEach((b) => (b.onclick = () => { S.inst.splice(+b.dataset.irm, 1); renderInst(); }));
+  }
+
+  function renderImm() {
+    const box = document.getElementById("imm"); if (!box) return;
+    const own = isOwner() ? "" : "disabled";
+    box.innerHTML = S.imm.length ? S.imm.map((i, n) => `<div class="fgrid" style="margin-bottom:8px" data-m="${n}">
+      <label>Name<input type="text" name="imm_name_${n}" data-k="name" value="${esc(i.name)}" ${own}></label>
+      <label>Days<input type="number" name="imm_days_${n}" data-k="days" min="1" max="14" value="${i.days ?? ""}" ${own}></label>
+      <label>Price<div class="money">$<input type="text" name="imm_price_${n}" data-k="price" inputmode="decimal" value="${dollars(i.price_cents)}" ${own}></div></label>
+      <label>Early-bird price <span class="hint">(optional)</span><div class="money">$<input type="text" name="imm_eb_${n}" data-k="eb" inputmode="decimal" value="${dollars(i.early_bird_price_cents)}" ${own}></div></label>
+      ${isOwner() ? `<div style="align-self:end"><button type="button" class="iconbtn" data-mrm="${n}">Remove</button></div>` : ""}</div>`).join("") : '<p class="small muted">No immersions yet.</p>';
+    box.querySelectorAll("[data-m]").forEach((row) => row.querySelectorAll("[data-k]").forEach((inp) => (inp.oninput = () => {
+      const it = S.imm[+row.dataset.m], k = inp.dataset.k;
+      if (k === "price") it.price_cents = toCents(inp.value); else if (k === "eb") it.early_bird_price_cents = toCents(inp.value);
+      else if (k === "days") it.days = inp.value === "" ? null : Number(inp.value); else it[k] = inp.value;
+    })));
+    box.querySelectorAll("[data-mrm]").forEach((b) => (b.onclick = () => { S.imm.splice(+b.dataset.mrm, 1); S.unsaved = true; renderImm(); }));
   }
 
   // ---------- Content editing (shared by Client Experience and Content and Branding) ----------
@@ -559,11 +577,16 @@
         ${repeat("grounds.photos", "Photos", (p) => `${F.image(`${p}.url`, "Photo")}${F.text(`${p}.caption`, "Caption")}${F.text(`${p}.alt`, "Description for screen readers", { wide: true })}`, { id: "", url: "", caption: "", alt: "" }, "Add photo")}</div></div>
       <div class="panel"><h2>The Experience</h2><div class="fgrid">${F.text("experience.heading", "Heading")}${F.text("experience.welcomes", "Who the retreat welcomes", { wide: true, area: true })}${F.text("experience.participation", "Participation note", { wide: true, area: true, hint: "Keep: participation and touch are always optional" })}
         ${F.lines("experience.inclusions", "Included")}${F.lines("experience.exclusions", "Not included")}${F.text("experience.pendingNote", "Shown while no sessions are published", { wide: true })}
+        ${F.text("experience.rhythm", "Pace of the days", { wide: true, area: true, hint: "Shown under the sessions. Leave blank to hide" })}
         ${repeat("experience.photos", "Photos", (p) => `${F.image(`${p}.url`, "Photo")}${F.text(`${p}.caption`, "Caption")}${F.text(`${p}.alt`, "Description for screen readers", { wide: true })}`, { id: "", url: "", caption: "", alt: "" }, "Add photo")}
         <p class="wide small muted">The first six photos make the gallery mosaic; all of them open in the photo viewer. The gallery is hidden when there are no photos.</p>
         ${repeat("experience.activities", "Sessions and rituals", (p, a) => `${F.text(`${p}.title`, "Title")}${F.text(`${p}.note`, "Note")}${F.text(`${p}.description`, "Description", { wide: true, area: true, rows: 2 })}
           ${a.reviewRequired ? `<div class="wide warn">Held back pending a separate safety and suitability review. It can’t be published until the owner records that the review is complete.</div>${F.bool(`${p}.reviewDone`, `Safety and suitability review completed${isOwner() ? "" : " (owner only)"}`, { dis: own })}` : ""}
           ${F.bool(`${p}.published`, "Publish (owner-approved, facilitators and delivery confirmed)")}`, { id: "", title: "", description: "", note: "", published: false }, "Add session")}</div></div>
+      <div class="panel"><h2>What you’ll take home</h2><p class="small muted">Shown under the overview once it has at least one item.</p><div class="fgrid">${F.text("transformation.heading", "Heading")}${F.text("transformation.intro", "Introduction", { wide: true, area: true })}
+        ${repeat("transformation.items", "Items", (p) => `${F.text(`${p}.title`, "Title")}${F.text(`${p}.text`, "Text", { wide: true, area: true, rows: 2 })}`, { id: "", title: "", text: "" }, "Add item")}</div></div>
+      <div class="panel"><h2>Investment summary</h2><p class="small muted">A short list of every room and immersion with its price, shown before Your Stay once it has a heading. Prices come from Rooms and Inventory and from Settings.</p><div class="fgrid">${F.text("investments.heading", "Heading", { hint: "Leave blank to hide the section" })}${F.text("investments.intro", "What every room includes", { wide: true, area: true })}${F.text("investments.paymentNote", "Deposit and payment plan", { wide: true, area: true })}</div></div>
+      <div class="panel"><h2>Day immersions</h2><p class="small muted">The wording around the immersions. Their names and prices are set in Settings and Audit.</p><div class="fgrid">${F.text("immersions.heading", "Heading")}${F.text("immersions.earlyBirdLabel", "Early-bird label")}${F.text("immersions.intro", "Introduction", { wide: true, area: true, rows: 2 })}${F.text("immersions.includes", "What’s included", { wide: true, area: true, rows: 2 })}${F.text("immersions.note", "Note", { wide: true })}${F.text("immersions.earlyBirdNote", "Early-bird note", { wide: true, area: true, rows: 2, hint: "Shown when an immersion has an early-bird price" })}</div></div>
       <div class="panel"><h2>Your Stay</h2><div class="fgrid">${F.text("stay.heading", "Heading")}${F.text("stay.intro", "Introduction", { wide: true, area: true })}${F.text("stay.sharedNote", "Shared room note", { wide: true, area: true })}</div><p class="small muted">Room details, prices and photos are edited in Rooms and Inventory.</p></div>
       <div class="panel"><h2>Meet Estar</h2><div class="fgrid">${F.text("host.heading", "Heading")}${F.text("host.name", "Name")}${F.text("host.title", "Title")}${F.image("host.photoUrl", "Photo")}${F.text("host.bio", "Approved biography", { wide: true, area: true, rows: 7 })}</div></div>
       <div class="panel"><h2>FAQs</h2><div class="fgrid">${repeat("faqs", "Questions", (p) => `${F.text(`${p}.q`, "Question", { wide: true })}${F.text(`${p}.a`, "Answer", { wide: true, area: true })}`, { id: "", q: "", a: "" }, "Add question")}</div></div>
@@ -642,8 +665,9 @@
           <label>City and state<input type="text" name="venue_city" value="${esc(r.venue_city || "")}" ${own}></label>
           <div style="align-self:end"><label class="check"><input type="checkbox" name="venue_confirmed" ${r.venue_confirmed ? "checked" : ""} ${own}> Venue confirmed</label></div>
           <label class="wide">Exact address and arrival details <span class="hint">(confirmed guests only)</span><textarea name="private_address" ${own}>${esc(r.private_address || "")}</textarea></label>
-          <div style="align-self:end"><label class="check"><input type="checkbox" name="day_pass_enabled" ${r.day_pass_enabled ? "checked" : ""} ${own}> Sell a day pass</label></div>
-          <label>Day pass price<div class="money">$<input type="text" name="day_pass" inputmode="decimal" value="${dollars(r.day_pass_price_cents)}" ${own}></div></label>
+          <div class="wide"><h3>Day immersions</h3><p class="small muted">For guests who join without staying overnight. Leave the early-bird price blank to offer only the standard price. The wording around them is edited in Content and Branding.</p>
+            <label class="check"><input type="checkbox" name="day_pass_enabled" ${r.day_pass_enabled ? "checked" : ""} ${own}> Offer day immersions</label>
+            <div id="imm"></div>${isOwner() ? '<button type="button" class="iconbtn" id="imm-add">Add immersion</button>' : ""}</div>
         </div>${isOwner() ? '<div><button class="btn btn-primary" type="submit">Save retreat details</button></div>' : ""}</form></div>
       <div class="panel"><h2>Staff access</h2><div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Two-step sign-in</th><th>Last sign-in</th><th></th></tr></thead><tbody>
         ${sl.rows.map((a) => `<tr><td><span class="name">${esc(a.name)}</span><small>${esc(a.email)}</small>${a.active ? "" : tag("Deactivated", "bad")}${a.invite_expires ? `<small>Invitation pending until ${fmtDateTime(a.invite_expires)}</small>` : ""}</td>
@@ -660,16 +684,19 @@
         <button class="iconbtn" id="audit-more" style="margin-top:10px">Load older</button></div>`;
     renderAudit();
     const ua = document.getElementById("use-app"); if (ua) ua.onclick = () => enrollScreen();
+    S.imm = (r.immersions || []).map((x) => ({ ...x }));
+    renderImm();
+    const ia = document.getElementById("imm-add");
+    if (ia) ia.onclick = () => { S.imm.push({ id: "", name: "", days: 1, price_cents: null, early_bird_price_cents: null }); renderImm(); };
     const rf = document.getElementById("ret-form");
     rf.addEventListener("input", () => (S.unsaved = true));
     rf.onsubmit = (ev) => {
       ev.preventDefault();
       const fd = new FormData(rf);
-      const dp = toCents(fd.get("day_pass"));
-      if (Number.isNaN(dp)) return toast("Enter a valid day pass price.", true);
-      const body = Object.fromEntries(fd);
+      if (S.imm.some((i) => Number.isNaN(i.price_cents) || Number.isNaN(i.early_bird_price_cents))) return toast("Enter valid immersion prices.", true);
+      const body = Object.fromEntries([...fd].filter(([k]) => !k.startsWith("imm_")));
       ["dates_confirmed", "venue_confirmed", "day_pass_enabled"].forEach((k) => (body[k] = rf[k].checked));
-      body.day_pass_price_cents = dp;
+      body.immersions = S.imm.map((i) => ({ ...i }));
       busy(rf.querySelector("button[type=submit]"), async () => { await call("retreat-save", body); S.unsaved = false; toast("Retreat details saved."); vSettings(v); });
     };
     v.querySelectorAll("[data-role]").forEach((s) => (s.onchange = () => busy(null, async () => { const a = sl.rows.find((x) => x.id === s.dataset.role); await call("staff-update", { id: a.id, role: s.value, active: a.active }); toast("Role updated."); vSettings(v); })));

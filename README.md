@@ -108,7 +108,7 @@ Neon keeps point-in-time history of the database, and you can restore to an earl
 ```bash
 npm install
 npm run dev          # http://localhost:3000 (in-memory Postgres, fake email)
-npm test             # 45 end-to-end acceptance checks
+npm test             # 49 end-to-end acceptance checks
 ```
 
 Local testing works like this:
@@ -126,16 +126,16 @@ The dev server is for local testing only. It is never deployed.
 
 | Area | What is checked |
 | --- | --- |
-| Rooms | All 7 room prices match the brief exactly. Prices are per guest, and each room's guest capacity matches the confirmed details (never inferred from occupancy labels). Admission stays unconfirmed |
-| Public page | The confirmed dates and venue are shown. The Experience photos load and each has a description. Unapproved activities (including yoni steaming) and portal-only content are not public |
-| Waiting list | Useful field errors. Calm success. Exactly one confirmation email. Duplicates, including different-case emails, get the same message with no second row or email. Bot submissions are dropped quietly. Simultaneous duplicate submissions save once. Floods hit a rate limit. If email delivery fails, the sign-up is still saved and the email is queued for retry |
+| Rooms | All 7 room prices are exact, with Emerald and Obsidian aligned at $2,799. Prices are per guest and include the full retreat experience, and each room's guest capacity matches the confirmed details (never inferred from occupancy labels) |
+| Public page | The confirmed dates and venue are shown. Estar's seven experiences, her biography and the day immersions (standard and early-bird prices) are public. The Experience photos load and each has a description. Held-back sessions (such as yoni steaming) and portal-only content are not public |
+| Waiting list | Useful field errors. A day immersion can be chosen instead of a room. Calm success. Exactly one confirmation email. Duplicates, including different-case emails, get the same message with no second row or email. Bot submissions are dropped quietly. Simultaneous duplicate submissions save once. Floods hit a rate limit. If email delivery fails, the sign-up is still saved and the email is queued for retry |
 | Guest sign-in | Wrong codes are refused with tries remaining. Used codes can't be reused. Resend is limited. A verified guest sees her correct waiting-list status, with no reservation or address |
 | Guest data | A second guest cannot read or change the first guest's records, even with extra IDs in the URL or request. Sign-out works. Cross-site form posts are blocked |
 | Admin access | Unauthenticated requests are refused for every admin action. First-owner setup needs the setup token and can run only once. Data stays locked until the admin code is entered, and a password alone can't skip it or add an authenticator app. Once an admin turns on an authenticator app, the shared code no longer works for that account |
 | Roles | Staff can't change prices, price basis, retreat settings, terms, staff, email approvals, client emails or inventory. The owner can |
 | Change history | Price changes are recorded with the before and after values and who made the change. The confirmed-details migration is recorded |
-| Paid launch | Dates and venue pass. Still blocked while terms, admission or inventory are unconfirmed. The Emerald and Obsidian difference is flagged |
-| Content | Draft, preview and publish work. The yoni steaming item can't be published until the owner records the safety review. Testimonials need recorded permission. Unsafe links are rejected |
+| Paid launch | Dates and venue pass. Still blocked while payment terms or inventory are unconfirmed. Emerald and Obsidian share a price, so no difference note is needed. The 30% deposit is saved. Immersion early-bird prices must be below the standard price |
+| Content | Draft, preview and publish work. The new page copy is in the draft only until published. A held-back session (such as yoni steaming) can't be published until the owner records the safety review. Testimonials need recorded permission. Unsafe links are rejected |
 | Exports | CSV exports contain only permitted fields, and intentions and staff notes are never exported. The marketing export contains only people who opted in. Spreadsheet formula injection is blocked |
 | Email | Failed emails are visible and can be retried. Unsubscribe links work, and forged links are refused. The scheduled job needs its secret |
 | Staff | Deactivated staff are signed out immediately. The last owner can't be demoted |
@@ -163,15 +163,14 @@ All of these can be edited in the admin area. Text in `[square brackets]` is hig
 - ~~**Guest capacities.**~~ **Done:** Sapphire 1, Tiger’s Eye 2, Emerald 2, Obsidian 2, Moonstone 3, each sofa bed 1. No one shares a bed (`migrations/009_separate_beds.sql`).
 - ~~**Event photos.**~~ **Done:** ten photos from Estar’s past gatherings are in The Experience gallery (`public/media/events/`, `migrations/003_event_photos.sql`). Edit them in Content and Branding, then The Experience, then Photos. Confirm everyone pictured has agreed to appear on the site.
 - ~~**Beds, bathrooms and accessibility.**~~ **Done** (`migrations/007_room_beds_bathrooms.sql`; the sofa beds share Moonstone’s bathroom, `migrations/010_downstairs_bathroom_balcony.sql`). Room privacy is no longer shown.
-- **Room details.** For each room:
-  - whether admission is included
-  - inventory
-  - the Emerald and Obsidian difference note (they are the same room type with the same features; the $100 price gap is waiting on the client's decision)
-- **Payment terms.** Taxes, fees, deposit, installments, cancellation, transfer and refunds (Bookings and Payments).
-- **Day pass.** Whether to sell one, and at what price.
-- **Experience.** Which sessions to publish. Yoni steaming is held back pending a separate safety review.
-- **Overview and bio.** Approved overview copy, who the retreat welcomes, inclusions and exclusions, and Estar's bio and photo.
-- **FAQs.** Answers to all of them.
+- ~~**Admission and Emerald/Obsidian pricing.**~~ **Done:** every room price includes the complete retreat experience, and Obsidian matches Emerald at $2,799 (`migrations/013_estar_confirmed_offer.sql`).
+- **Room inventory.** Confirm the sellable units for each room (Rooms and Inventory).
+- **Payment terms.** Agreed so far and saved in Bookings and Payments: a 30% nonrefundable deposit, the balance in installments, transfers considered with advance notice and approval. Still needed before reservations open: installment deadlines, cancellation windows, refund terms, taxes and fees. Then mark the terms approved.
+- ~~**Day immersions.**~~ **Done:** One-Day $444 and Two-Day $666, with early-bird prices of $333 and $555 (Settings and Audit). Still needed: the early-bird deadline or number of spots.
+- ~~**Experience.**~~ **Done:** Estar's seven experiences are published. The schedule and specific ceremonies are still to be finalized in the itinerary.
+- **Overview and copy.** New copy in Estar's voice is in the **draft** for her approval (`migrations/014_draft_copy.sql`): the overview letter, who the retreat welcomes, "What you'll take home", "Your investment" and a note on the pace of the days. Preview it at `/?preview=1` and publish from Content and Branding. Exclusions are still a placeholder.
+- **Bio and portrait.** ~~Bio~~ **done**. Estar will send her official logo and a professional portrait.
+- **FAQs.** Payments, cancellation, meals and day immersions are answered. Arrival and departure, transport, dietary needs, accessibility, room sharing and packing still need answers.
 - **Testimonials.** Approved testimonials with written permission.
 - **Contact.** The verified support email, phone and response time.
 - **Legal text.** Privacy policy, agreement and policy text from the attorney.

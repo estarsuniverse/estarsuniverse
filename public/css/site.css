@@ -60,6 +60,14 @@ section { padding: clamp(64px, 9vw, 112px) 0; }
 .lb-close { margin-left: 12px; }
 .lightbox :focus-visible { outline-color: var(--gold); }
 
+/* What you'll take home */
+.transform { background: var(--tint); }
+.transform h2 { color: var(--olive); }
+.tf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 32px; margin-top: 28px; }
+.tf-item { padding: 22px 0; border-top: 2px solid var(--olive); }
+.tf-item h3 { font-size: 21px; margin: 0 0 8px; }
+.tf-item p { margin: 0; color: var(--muted); font-size: 16px; }
+
 /* Experience */
 .experience { background: var(--bg); border-top: 1px solid var(--line); }
 .exp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 72px); margin-top: 28px; }
@@ -73,6 +81,35 @@ section { padding: clamp(64px, 9vw, 112px) 0; }
 .activity h4 { font-family: var(--serif); font-weight: 400; font-style: italic; color: var(--olive); font-size: 20px; margin: 0 0 6px; }
 .activity p { font-size: 15.5px; color: var(--muted); margin: 0; }
 .participation { margin-top: 28px; }
+.rhythm { margin: 36px 0 0; padding-left: 20px; border-left: 3px solid var(--gold); font-family: var(--serif); font-style: italic; font-size: clamp(18px, 2vw, 21px); line-height: 1.6; max-width: 62ch; color: var(--olive-deep); }
+
+/* Investment summary */
+.investment { background: var(--tint); }
+.investment h2 { color: var(--olive); }
+.inv-block { margin-top: 28px; }
+.inv-block h3, .immersions h3 { font-size: 22px; }
+.inv-rooms { list-style: none; margin: 12px 0 0; padding: 0; border-top: 2px solid var(--olive); }
+.inv-rooms a { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) auto; gap: 6px 20px; align-items: baseline; padding: 15px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.inv-rooms a:hover .inv-name { text-decoration: underline; }
+.inv-name { font-family: var(--serif); font-size: 19px; }
+.inv-meta { color: var(--muted); font-size: 15px; }
+.inv-price { font-family: var(--serif); font-size: 20px; text-align: right; white-space: nowrap; }
+.inv-price small { font-family: var(--sans); font-size: 13px; color: var(--muted); }
+.inv-pay { margin-top: 36px; display: grid; gap: 16px; justify-items: start; max-width: 62ch; }
+.inv-pay p { margin: 0; font-size: 17px; }
+
+/* Day immersions */
+.immersions { margin-top: 40px; }
+.imm-intro { max-width: 62ch; }
+.imm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 16px 0 18px; }
+.imm-card { background: #fff; border: 1px solid var(--line); border-top: 4px solid var(--gold); border-radius: 6px; padding: 20px 22px; }
+.imm-card h4 { font-family: var(--serif); font-weight: 400; font-size: 21px; margin: 0 0 10px; }
+.imm-price { margin: 0; }
+.imm-price strong { font-family: var(--serif); font-weight: 400; font-size: 28px; }
+.imm-price small { color: var(--muted); font-size: 13.5px; }
+.imm-eb { margin: 10px 0 0; font-size: 17px; display: flex; align-items: center; gap: 10px; }
+.immersions > p { max-width: 62ch; }
+.imm-note { font-size: 15px; color: var(--muted); }
 
 /* Rooms */
 .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 22px; margin-top: 32px; }
@@ -162,6 +199,8 @@ section { padding: clamp(64px, 9vw, 112px) 0; }
   .letter-grid, .exp-grid, .wl-grid, .host-grid { grid-template-columns: 1fr; }
   .host-photo { max-width: 360px; }
   .photo-grid { grid-template-columns: 1fr 1fr; grid-auto-rows: 170px; grid-template-areas: "a a" "b c" "d e" "f f"; }
+  .inv-rooms a { grid-template-columns: minmax(0, 1fr) auto; }
+  .inv-meta { grid-column: 1 / -1; grid-row: 2; }
 }
 @media (max-width: 560px) {
   .topbar-inner { min-height: 56px; }

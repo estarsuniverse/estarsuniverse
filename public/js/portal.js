@@ -126,7 +126,8 @@
   const locked = (title, text) => `<div class="card locked"><div class="icon" aria-hidden="true">&#9675;</div><h3>${title}</h3><p class="muted">${text}</p></div>`;
 
   function roomOptions(selected) {
-    const opts = [["undecided", "Not sure yet"], ["any", "Any room"], ...me.rooms.map((r) => [r.id, `${r.name} (${money(r.price_cents)}, ${r.basis})`])];
+    const opts = [["undecided", "Not sure yet"], ["any", "Any room"], ...me.rooms.map((r) => [r.id, `${r.name} (${money(r.price_cents)}, ${r.basis})`]),
+      ...(me.immersions || []).map((i) => [i.id, `${i.name} (${money(i.price_cents)})`])];
     return opts.map(([v, l]) => `<option value="${esc(v)}" ${v === (selected || "undecided") ? "selected" : ""}>${esc(l)}</option>`).join("");
   }
 
@@ -153,7 +154,7 @@
   function joinCard() {
     return `<div class="card"><h3>Join the waiting list</h3>
       <form id="join-form" class="stack" novalidate>
-        <label><span>Room preference <span class="req">(optional)</span></span><select name="room_pref">${roomOptions()}</select></label>
+        <label><span>${(me.immersions || []).length ? "Room or immersion" : "Room preference"} <span class="req">(optional)</span></span><select name="room_pref">${roomOptions()}</select></label>
         <label><span>A short intention <span class="req">(optional)</span></span><textarea name="intention" maxlength="500" rows="3"></textarea></label>
         <p class="muted" style="font-size:14px;margin:0">${mark(me.waitlistText.privacyNotice)}</p>
         <label class="check"><input type="checkbox" name="marketing"><span>${mark(me.waitlistText.consentText)}</span></label>
@@ -169,7 +170,7 @@
     return `<div class="card lead"><h3>Your preferences</h3>
       <p class="muted">A room preference helps us plan. It is not a hold or a reservation.</p>
       <form id="pref-form" class="stack" novalidate>
-        <label><span>Room preference</span><select name="room_pref">${roomOptions(w.room_pref)}</select></label>
+        <label><span>${(me.immersions || []).length ? "Room or immersion" : "Room preference"}</span><select name="room_pref">${roomOptions(w.room_pref)}</select></label>
         <label><span>Your intention <span class="req">(optional)</span></span><textarea name="intention" maxlength="500" rows="3">${esc(w.intention || "")}</textarea></label>
         <p class="form-error" role="alert" id="pref-err"></p>
         <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" type="submit">Save preferences</button><p class="saved" id="pref-ok" aria-live="polite"></p></div>
