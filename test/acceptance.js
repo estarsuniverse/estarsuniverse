@@ -337,6 +337,7 @@ class Client {
     assert.equal(back.status, 400); assert.match(back.data.error, /no tickets left/);
   });
   await check("Day immersions are paid in full and sell out at their ticket limit", async () => {
+    assert.deepEqual((await owner.admin("rooms-list")).data.immersions.map((i) => i.ticket_limit), [20, 20], "each day immersion has 20 tickets");
     assert.equal((await owner.admin("sale-save", { option_id: "imm_one_day", guest_name: "Day Guest", plan: "deposit", first_payment_cents: 1000 })).status, 400);
     const imms = (await owner.admin("rooms-list")).data.immersions.map((i) => (i.id === "imm_one_day" ? { ...i, ticket_limit: 1 } : i));
     assert.equal((await owner.admin("immersions-save", { enabled: true, immersions: imms })).status, 200);
