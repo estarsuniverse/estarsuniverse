@@ -155,7 +155,7 @@ Contrast was measured for every text and background pair; see the header of `pub
 
 All of these can be edited in the admin area. Text in `[square brackets]` is highlighted on the preview page until it's replaced.
 
-- **Logo.** A text wordmark marked "Logo placeholder" is shown until the logo is uploaded in **Content and Branding**.
+- ~~**Logo.**~~ **Done:** the Empowered Wombman emblem (`public/media/brand/`): the light-background version in the header, the black version in the footer, and the emblem as the browser tab icon, each beside the name (`migrations/018_logos_and_portrait.sql`). Replace them in **Content and Branding**.
 - **Hero video.** The pond video (`public/media/pond.mp4`, with a WebM backup) plays in the header, with a pause button. Visitors who prefer reduced motion see the aerial photo instead. The video's first frame shows the entry gate, which has lettering on it. Confirm with Estar that she's comfortable showing it.
 - ~~**Venue photos.**~~ **Done:** the venue photos in the grounds gallery and hero are approved for this retreat.
 - **Room photos.** Sapphire, Tiger’s Eye, Emerald, Obsidian and Moonstone have photos cropped from the Peace on the Pond suites flyer (`public/media/rooms/`, `migrations/006_room_photos.sql`). Tiger’s Eye is the flyer’s Sunstone suite. Three of its four photos are now the full-size originals from peaceonthepond.com; the site has no photos of the other rooms, so their flyer crops are small and should be replaced with full-size originals in Rooms and Inventory when available. Emerald and Moonstone also show the downstairs kitchenette (`migrations/008_downstairs_kitchenette_photo.sql`). The sofa beds show the downstairs living area, kitchenette and balcony with a jacuzzi, and Moonstone also shows the balcony (`migrations/011_downstairs_photos.sql`). Emerald and Moonstone also show the downstairs living area (`migrations/012_downstairs_living_photo.sql`).
@@ -172,7 +172,7 @@ All of these can be edited in the admin area. Text in `[square brackets]` is hig
 - ~~**Day immersions.**~~ **Done:** One-Day $444 and Two-Day $666, with early-bird prices of $333 and $555 (Settings and Audit). Still needed: the early-bird deadline or number of spots.
 - ~~**Experience.**~~ **Done:** Estar's seven experiences are published. The schedule and specific ceremonies are still to be finalized in the itinerary.
 - **Overview and copy.** New copy in Estar's voice is in the **draft** for her approval (`migrations/014_draft_copy.sql`): the overview letter, who the retreat welcomes, "What you'll take home", "Your investment" and a note on the pace of the days. Preview it at `/?preview=1` and publish from Content and Branding. Exclusions are still a placeholder.
-- **Bio and portrait.** ~~Bio~~ **done**. Estar will send her official logo and a professional portrait.
+- ~~**Bio and portrait.**~~ **Done:** Estar's biography and her portrait in Meet Estar (`public/media/estar-portrait.jpg`).
 - **FAQs.** Payments, cancellation, meals and day immersions are answered. Arrival and departure, transport, dietary needs, accessibility, room sharing and packing still need answers.
 - **Testimonials.** Approved testimonials with written permission.
 - **Contact.** The verified support email, phone and response time.

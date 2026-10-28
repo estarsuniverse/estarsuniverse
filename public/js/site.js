@@ -8,7 +8,8 @@
 
   function brandHtml(b, dark) {
     const url = dark ? (b.logoDarkUrl || b.logoUrl) : b.logoUrl;
-    if (url) return `<img src="${esc(url)}" alt="${esc(b.logoAlt || b.orgName)}">`;
+    // The logo is an emblem, so the name is written beside it (the image itself is decorative).
+    if (url) return `<img class="logo-mark" src="${esc(url)}" alt=""><span class="wordmark">${esc(b.orgName || "Empowered Wombman")}</span>`;
     return `<span class="wordmark">${esc(b.orgName || "Empowered Wombman")}</span><span class="ph-tag" title="The real logo will replace this">Logo placeholder</span>`;
   }
 
@@ -24,6 +25,7 @@
         : "<strong>Preview.</strong> Content on this page is awaiting approval. Highlighted text is a placeholder.";
     }
     $("brand").innerHTML = brandHtml(b, false);
+    $("brand").classList.toggle("has-logo", Boolean(b.logoUrl));
     $("foot-brand").innerHTML = brandHtml(b, true);
     $("foot-tag").textContent = b.retreatName || "";
 

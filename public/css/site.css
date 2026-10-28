@@ -209,6 +209,9 @@ section { padding: clamp(64px, 9vw, 112px) 0; }
   .topbar-inner { min-height: 56px; }
   .wordmark { font-size: 17px; }
   .topbar .brand { flex-direction: column; align-items: flex-start; gap: 3px; padding: 6px 0; }
+  .topbar .brand.has-logo { flex-direction: row; align-items: center; gap: 8px; padding: 0; }
+  .topbar .logo-mark { width: 36px; height: 36px; }
+  .topbar .brand.has-logo .wordmark { font-size: 16px; white-space: normal; line-height: 1.15; }
   .topbar .ph-tag { font-size: 9.5px; padding: 3px 5px; }
   .portal-link { padding: 8px 12px; font-size: 13px; }
   .rs-pay .btn { width: 100%; }

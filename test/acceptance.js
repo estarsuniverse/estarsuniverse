@@ -120,12 +120,15 @@ async function signInGuest(c, email) {
     for (const p of photos) assert.equal((await fetch(BASE + p.url)).status, 200, p.url);
     assert.ok(!/approved for this retreat/.test(content.data.site.grounds.intro), "venue photo approval note still shown");
   });
-  await check("Estar's seven experiences are public; nothing held back (such as yoni steaming) or portal-only is", async () => {
+  await check("Logos, Estar's portrait and her seven experiences are public; nothing held back (such as yoni steaming) or portal-only is", async () => {
     const titles = content.data.site.experience.activities.map((a) => a.title);
     assert.equal(titles.length, 7); assert.ok(titles.includes("Sensual Embodiment Workshop")); assert.ok(titles.includes("Rest, nourishment, and communion with nature"));
     assert.equal(content.data.site.portal, undefined);
     assert.ok(!JSON.stringify(content.data).toLowerCase().includes("yoni"));
     assert.match(content.data.site.host.bio, /^ESTAR is a multidisciplinary artist, Singing Yogini/);
+    const b = content.data.site.brand;
+    for (const u of [b.logoUrl, b.logoDarkUrl, content.data.site.host.photoUrl, "/media/brand/favicon.png"]) assert.equal((await fetch(BASE + u)).status, 200, u);
+    assert.equal(b.logoUrl, "/media/brand/logo-light.png"); assert.equal(b.logoDarkUrl, "/media/brand/logo-dark.png");
   });
   await check("Day immersions are public with standard and early-bird prices", async () => {
     assert.deepEqual(content.data.retreat.immersions.map((i) => [i.name, i.days, i.price_cents, i.early_bird_price_cents]),
