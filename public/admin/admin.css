@@ -101,6 +101,14 @@ input:disabled, select:disabled, textarea:disabled { background: #F3F1EC; color:
 .room-card summary::-webkit-details-marker { display: none; }
 .room-card summary .title { font-family: var(--serif); font-size: 19px; }
 .room-card[open] summary { margin-bottom: 14px; }
+.sale-card { border-left: 4px solid var(--olive); padding-top: 14px; padding-bottom: 14px; }
+.sale-card.canceled { border-left-color: var(--line); opacity: .75; }
+.sale-card summary { cursor: pointer; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 12px; align-items: center; list-style: none; }
+.sale-card summary::-webkit-details-marker { display: none; }
+.sale-card summary .title { font-family: var(--serif); font-size: 18px; }
+.sale-card[open] summary { margin-bottom: 10px; }
+.sale-card .pay-form { margin-top: 12px; }
+.page-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; }
 .units td, .units th { font-size: 13.5px; }
 .units table { min-width: 0; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 50; background: var(--ink); color: var(--bg); padding: 12px 20px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.25); max-width: calc(100% - 32px); font-weight: 500; }

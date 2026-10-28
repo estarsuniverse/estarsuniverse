@@ -151,7 +151,7 @@
     const c = s.contact || {};
     const contactBits = c.verified ? [c.email && `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`, c.phone && `<a href="tel:${esc(c.phone.replace(/[^\d+]/g, ""))}">${esc(c.phone)}</a>`].filter(Boolean) : [];
     $("contact-line").innerHTML = contactBits.length ? `Still have a question? Reach us at ${contactBits.join(" or ")}.${c.responseTime ? ` ${esc(c.responseTime)}` : ""}` : "";
-    $("foot-links").innerHTML = [...contactBits, '<a href="/portal/">Guest Portal</a>', '<a href="#reserve">Secure your spot</a>'].map((x) => `<span>${x}</span>`).join("");
+    $("foot-links").innerHTML = [...contactBits, '<a href="#reserve">Secure your spot</a>'].map((x) => `<span>${x}</span>`).join("");
     $("foot-fine").textContent = `© ${new Date().getFullYear()} ${b.orgName || "Empowered Wombman"}`;
 
     // Reserve
@@ -259,7 +259,7 @@
     rs.opts = d.rooms.map((rm) => ({ id: rm.id, room: true, name: rm.name, price: rm.price_cents, early: null,
       meta: [guests(rm.guest_capacity), rm.beds].filter(Boolean).join(" · "), sold: rm.availability === "sold_out" }))
       .concat((r.immersions || []).map((i) => ({ id: i.id, room: false, name: i.name, price: i.price_cents, early: i.early_bird_price_cents,
-        meta: `${i.days ? `${i.days} ${i.days === 1 ? "day" : "days"}, ` : ""}no overnight stay`, sold: false })));
+        meta: `${i.days ? `${i.days} ${i.days === 1 ? "day" : "days"}, ` : ""}no overnight stay`, sold: Boolean(i.sold_out) })));
     const opt = (o) => `<option value="${esc(o.id)}" ${o.sold ? "disabled" : ""}>${esc(o.name)} · ${o.sold ? "Sold out"
       : `${money(o.price)} per guest${o.early != null ? ` (early bird ${money(o.early)})` : ""}`}</option>`;
     const rooms = rs.opts.filter((o) => o.room), imms = rs.opts.filter((o) => !o.room);

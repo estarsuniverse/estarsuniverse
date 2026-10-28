@@ -37,27 +37,6 @@ class Client {
   post(url, body) { return this.req("POST", url, body || {}); }
   admin(action, body = {}) { return this.post("/api/admin", { action, ...body }); }
 }
-const outbox = async () => (await fetch(`${BASE}/dev/outbox`)).json();
-const codeFor = async (email) => {
-  const mails = (await outbox()).filter((m) => m.to.includes(email) && /sign-in code/i.test(m.subject));
-  return mails.length ? mails[mails.length - 1].subject.match(/(\d{6})/)[1] : null;
-};
-
-async function joinWaitlist(c, fields, waitMs = 2100) {
-  const content = await c.get("/api/site?fn=content");
-  await sleep(waitMs);
-  return c.post("/api/site?fn=waitlist", { ft: content.data.formToken, ...fields });
-}
-
-async function signInGuest(c, email) {
-  const s = await c.post("/api/site?fn=auth-start", { email });
-  assert.equal(s.status, 200, JSON.stringify(s.data));
-  const code = await codeFor(email);
-  assert.ok(code, "no sign-in code in outbox");
-  const v = await c.post("/api/site?fn=auth-verify", { email, code });
-  assert.equal(v.status, 200, JSON.stringify(v.data));
-}
-
 (async () => {
   const srv = spawn(process.execPath, [path.join(__dirname, "..", "tools", "devserver.js")], {
     env: { ...process.env, PORT: String(PORT), DATABASE_URL: "pglite:memory", DEV_UPLOAD_DIR: "/tmp/eg-test-uploads", ADMIN_REQUIRE_SIGNIN: "true" }, stdio: ["ignore", "pipe", "pipe"],
@@ -82,7 +61,7 @@ async function signInGuest(c, email) {
     const want = { "Sapphire": 1, "Tiger’s Eye": 2, "Emerald": 2, "Obsidian": 2, "Moonstone": 3 };
     for (const r of content.data.rooms) {
       assert.equal(r.price_basis, "per_guest"); assert.equal(r.guest_capacity, want[r.name], r.name);
-      assert.equal(r.includes_admission, "yes"); assert.equal(r.difference_note, ""); assert.equal(r.availability, "waitlist");
+      assert.equal(r.includes_admission, "yes"); assert.equal(r.difference_note, ""); assert.equal(r.availability, "soon");
     }
   });
   await check("Room photos load, with descriptions", async () => {
@@ -147,114 +126,16 @@ async function signInGuest(c, email) {
   });
 
   // ---------- Waiting list ----------
-  await check("Waiting list: missing name and bad email give useful field errors", async () => {
-    let r = await joinWaitlist(visitor, { name: "", email: "a@b.co" }, 2100);
-    assert.equal(r.status, 400); assert.equal(r.data.field, "name");
-    r = await joinWaitlist(visitor, { name: "Ama", email: "not-an-email" }, 2100);
-    assert.equal(r.status, 400); assert.equal(r.data.field, "email"); assert.match(r.data.error, /email/i);
-  });
-  await check("Waiting list: valid join saves, shows calm success, and sends one confirmation", async () => {
-    const r = await joinWaitlist(visitor, { name: "Ama Mensah", email: "Ama@Example.com ", room_pref: "room_sapphire", intention: "Rest.", marketing: true, tags: { utm_source: "ig" } });
-    assert.equal(r.status, 200); assert.match(r.data.message, /waiting list, sistar/);
-    assert.match(r.data.message, /does not reserve a room or require payment/);
-    const mails = (await outbox()).filter((m) => m.to.includes("ama@example.com"));
-    assert.equal(mails.length, 1); assert.match(mails[0].subject, /waiting list/i);
-  });
-  await check("Waiting list: a day immersion can be chosen; an unknown choice becomes 'not sure yet'", async () => {
-    assert.equal((await joinWaitlist(new Client(), { name: "Day Guest", email: "dayguest@example.com", room_pref: "imm_two_day" })).status, 200);
-    assert.equal((await joinWaitlist(new Client(), { name: "Odd Choice", email: "oddchoice@example.com", room_pref: "imm_made_up" })).status, 200);
-  });
-  await check("Waiting list: duplicate (different case) gets the same message and no second email or row", async () => {
-    const r = await joinWaitlist(new Client(), { name: "Someone Else", email: "AMA@example.com" });
-    assert.equal(r.status, 200); assert.match(r.data.message, /waiting list, sistar/);
-    assert.equal((await outbox()).filter((m) => m.to.includes("ama@example.com")).length, 1);
-  });
-  await check("Waiting list: honeypot and too-fast submissions are quietly dropped", async () => {
-    const c = new Client();
-    const r1 = await joinWaitlist(c, { name: "Bot", email: "bot1@example.com", website: "http://spam" });
-    const r2 = await joinWaitlist(c, { name: "Bot", email: "bot2@example.com" }, 0);
-    assert.equal(r1.status, 200); assert.equal(r2.status, 200);
-    assert.equal((await outbox()).filter((m) => /bot\d@/.test(m.to[0])).length, 0);
-  });
-  await check("Waiting list: simultaneous duplicate submissions create one entry", async () => {
-    const c = new Client(); const tok = (await c.get("/api/site?fn=content")).data.formToken; await sleep(2100);
-    const rs = await Promise.all([1, 2, 3].map(() => c.post("/api/site?fn=waitlist", { ft: tok, name: "Twin", email: "twin@example.com" })));
-    rs.forEach((r) => assert.equal(r.status, 200));
-    assert.equal((await outbox()).filter((m) => m.to.includes("twin@example.com")).length, 1);
-  });
-  await check("Waiting list: rate limit stops floods from one connection", async () => {
-    const c = new Client("10.9.9.9"); const tok = (await c.get("/api/site?fn=content")).data.formToken; await sleep(2100);
-    let last;
-    for (let i = 0; i < 12; i++) last = await c.post("/api/site?fn=waitlist", { ft: tok, name: "Flood", email: `flood${i}@example.com` });
-    assert.equal(last.status, 429);
-  });
-  await check("Waiting list: if email delivery fails, the sign-up still succeeds and the email is queued for retry", async () => {
-    await fetch(`${BASE}/dev/email-fail?on=1`);
-    const r = await joinWaitlist(new Client(), { name: "Nia", email: "nia@example.com" });
-    await fetch(`${BASE}/dev/email-fail?on=0`);
-    assert.equal(r.status, 200);
-    assert.equal((await outbox()).filter((m) => m.to.includes("nia@example.com")).length, 0);
-  });
-
-  // ---------- Guest sign-in and portal ----------
-  const ama = new Client("10.2.0.1");
-  await check("Portal is closed without sign-in", async () => {
-    const r = await ama.get("/api/site?fn=me"); assert.equal(r.status, 401);
-  });
-  await check("Guest sign-in: wrong code is refused with tries left; right code signs in", async () => {
-    await ama.post("/api/site?fn=auth-start", { email: "ama@example.com" });
-    const code = await codeFor("ama@example.com");
-    const wrong = String((Number(code) + 1) % 1e6).padStart(6, "0");
-    const bad = await ama.post("/api/site?fn=auth-verify", { email: "ama@example.com", code: wrong });
-    assert.equal(bad.status, 400); assert.match(bad.data.error, /tries left/);
-    const ok = await ama.post("/api/site?fn=auth-verify", { email: "ama@example.com", code });
-    assert.equal(ok.status, 200);
-  });
-  await check("Guest sign-in: a used code cannot be reused", async () => {
-    const code = await codeFor("ama@example.com");
-    const r = await new Client().post("/api/site?fn=auth-verify", { email: "ama@example.com", code });
-    assert.equal(r.status, 400);
-  });
-  await check("Guest sign-in: resend is limited", async () => {
-    const c = new Client();
-    await c.post("/api/site?fn=auth-start", { email: "resend@example.com" });
-    const r = await c.post("/api/site?fn=auth-start", { email: "resend@example.com" });
-    assert.equal(r.status, 429);
-  });
-  await check("Verified guest sees her correct waiting-list account (not a reservation)", async () => {
-    const r = await ama.get("/api/site?fn=me");
-    assert.equal(r.status, 200);
-    assert.equal(r.data.profile.email, "ama@example.com"); assert.equal(r.data.profile.name, "Ama Mensah");
-    assert.equal(r.data.leadStatus, "waiting"); assert.equal(r.data.waitlist.room_pref, "room_sapphire");
-    assert.equal(r.data.booking, null); assert.equal(r.data.portal.prepareUnlocked, false);
-    assert.equal(r.data.retreat.privateAddress, undefined);
-  });
-  const bea = new Client("10.2.0.2");
-  await check("A second guest cannot see or change the first guest's records", async () => {
-    await signInGuest(bea, "bea@example.com");
-    const r = await bea.get("/api/site?fn=me&profile=ama&email=ama@example.com");
-    assert.equal(r.data.profile.email, "bea@example.com"); assert.equal(r.data.waitlist, null);
-    assert.ok(!JSON.stringify(r.data).includes("ama@example.com"));
-    const u = await bea.post("/api/site?fn=portal-update", { room_pref: "room_emerald", email: "ama@example.com", id: "anything" });
-    assert.equal(u.status, 400);
-    const again = await ama.get("/api/site?fn=me");
-    assert.equal(again.data.waitlist.room_pref, "room_sapphire");
-  });
-  await check("Guest can update her own preference and sign out", async () => {
-    const u = await ama.post("/api/site?fn=portal-update", { room_pref: "room_emerald", intention: "Slow down." });
-    assert.equal(u.status, 200);
-    assert.equal((await ama.get("/api/site?fn=me")).data.waitlist.room_pref, "room_emerald");
-    await ama.post("/api/site?fn=logout");
-    assert.equal((await ama.get("/api/site?fn=me")).status, 401);
-  });
   await check("Cross-site POST without our headers is blocked", async () => {
-    const r = await fetch(`${BASE}/api/site?fn=auth-start`, { method: "POST", headers: { Origin: "https://evil.example", "Content-Type": "application/json" }, body: JSON.stringify({ email: "x@y.co" }) });
+    const r = await fetch(`${BASE}/api/admin`, { method: "POST", headers: { Origin: "https://evil.example", "Content-Type": "application/json" }, body: JSON.stringify({ action: "status" }) });
     assert.equal(r.status, 403);
+    assert.equal((await fetch(`${BASE}/api/site?fn=waitlist`, { method: "POST" })).status, 404, "the waiting list is gone");
+    assert.equal((await fetch(`${BASE}/api/site?fn=me`)).status, 404, "the guest portal is gone");
   });
 
   // ---------- Admin access ----------
   await check("Unauthenticated visitor cannot use any admin action", async () => {
-    for (const a of ["overview", "waitlist-list", "waitlist-csv", "rooms-list", "room-save", "content-publish", "staff-list", "audit-list"]) {
+    for (const a of ["overview", "sales-list", "sale-save", "payment-add", "sales-csv", "rooms-list", "room-save", "content-publish", "staff-list", "audit-list"]) {
       const r = await visitor.admin(a); assert.equal(r.status, 401, a);
     }
   });
@@ -275,7 +156,7 @@ async function signInGuest(c, email) {
     const ok = await owner.admin("mfa-enable", { code: sec.totpNow(b.data.secret) }); assert.equal(ok.status, 200);
     owner.totp = b.data.secret;
     const o = await owner.admin("overview"); assert.equal(o.status, 200);
-    assert.ok(o.data.waitlist.total >= 3);
+    assert.equal(o.data.totals.sold, 0); assert.equal(o.data.totals.residential_tickets, 10);
   });
   await check("Once an authenticator app is on, sign-in also needs the app code", async () => {
     const c = new Client("10.1.0.9");
@@ -316,7 +197,7 @@ async function signInGuest(c, email) {
     let r = await staff.admin("room-save", { ...base, price_cents: 100 }); assert.equal(r.status, 403);
     r = await staff.admin("room-save", { ...base, price_basis: "per_room" }); assert.equal(r.status, 403);
     r = await staff.admin("room-save", { ...base, beds: "One queen bed" }); assert.equal(r.status, 200);
-    for (const [a, body] of [["retreat-save", { name: "X", timezone: "America/New_York" }], ["terms-save", {}], ["staff-invite", { name: "Y", email: "y@example.com" }], ["template-approve", { key: "preparation", enabled: true }], ["reservations-toggle", { open: true }], ["client-email-change", { from: "a@b.co", to: "c@d.co" }], ["unit-save", { label: "x" }], ["payment-links-save", { links: { "*": { full: "https://pay.example.com/x" } } }]]) {
+    for (const [a, body] of [["retreat-save", { name: "X", timezone: "America/New_York" }], ["terms-save", {}], ["staff-invite", { name: "Y", email: "y@example.com" }], ["reservations-toggle", { open: true }], ["immersions-save", { enabled: false }], ["room-delete", { id: "room_sapphire" }], ["payment-links-save", { links: { "*": { full: "https://pay.example.com/x" } } }]]) {
       assert.equal((await staff.admin(a, body)).status, 403, a);
     }
   });
@@ -332,20 +213,20 @@ async function signInGuest(c, email) {
     assert.ok(log.find((a) => a.action === "room.price_changed" && a.actor_label === "migration" && a.before.price_cents === 289900 && a.after.price_cents === 279900), "no audit event for aligning Obsidian");
     await owner.admin("room-save", { ...ob, price_cents: 279900 });
   });
-  await check("Paid launch stays blocked while inventory or terms are unconfirmed", async () => {
+  await check("Payments stay off while terms, contact or links are missing; rooms need no inventory", async () => {
     const r = await owner.admin("reservations-toggle", { open: true });
     assert.equal(r.status, 400);
     const c = r.data.checklist.items;
     assert.ok(c.find((i) => i.key === "dates" && i.ok)); assert.ok(c.find((i) => i.key === "venue" && i.ok));
     assert.ok(c.find((i) => i.key === "terms" && !i.ok));
-    assert.ok(c.find((i) => i.key === "room:room_emerald" && !i.ok && /inventory/.test(i.detail) && !/admission|price basis|guest capacity|bed|photo/.test(i.detail)));
+    assert.ok(c.find((i) => i.key === "room:room_emerald" && i.ok), "Emerald has its price, tickets, beds and photos");
+    assert.ok(!c.some((i) => /inventory/i.test(i.label + i.detail)));
     assert.ok(!c.find((i) => i.key.startsWith("diff:")), "Emerald and Obsidian share a price, so no difference note is needed");
     const ret = (await owner.admin("retreat-get")).data.retreat;
     assert.equal(ret.terms.deposit_percent, 30); assert.equal(ret.terms_confirmed, false);
-    const bad = { ...ret, immersions: [{ id: "imm_x", name: "Test", days: 1, price_cents: 10000, early_bird_price_cents: 20000 }] };
-    const refused = await owner.admin("retreat-save", bad);
+    const refused = await owner.admin("immersions-save", { enabled: true, immersions: [{ id: "imm_x", name: "Test", days: 1, price_cents: 10000, early_bird_price_cents: 20000 }] });
     assert.equal(refused.status, 400); assert.match(refused.data.error, /early-bird price for Test must be lower/);
-    assert.equal((await owner.admin("retreat-save", ret)).status, 200, "saving the retreat keeps its immersions");
+    assert.equal((await owner.admin("retreat-save", ret)).status, 200, "saving the retreat details leaves the immersions alone");
     assert.equal((await owner.admin("retreat-get")).data.retreat.immersions.length, 2);
   });
   await check("Payment links: owner only, https only, hidden from visitors until reservations open, and tracked on the checklist", async () => {
@@ -418,34 +299,63 @@ async function signInGuest(c, email) {
   });
 
   // ---------- Exports and email ----------
-  await check("CSV exports include only permitted fields; marketing export only has opted-in people", async () => {
-    const all = (await staff.admin("waitlist-csv", { kind: "all" })).data.csv;
-    const header = all.split("\r\n")[0];
-    assert.equal(header, "joined_at,name,email,room_preference,marketing_consent,consent_version,source,tags,status,portal_activated");
-    assert.ok(!/Slow down|Rest\./.test(all), "intention leaked into CSV");
-    const mkt = (await staff.admin("waitlist-csv", { kind: "marketing" })).data.csv;
-    assert.ok(mkt.includes("Ama@Example.com") || mkt.toLowerCase().includes("ama@example.com"));
-    assert.ok(!mkt.includes("nia@example.com") && !mkt.includes("twin@example.com"));
+  // ---------- Tickets and payments ----------
+  await check("Recording a payment sells a ticket; the room sells out at its guest count and can't be oversold", async () => {
+    let r = await owner.admin("sale-save", { option_id: "room_sapphire", guest_name: "Ama Mensah", guest_email: "Ama@Example.com", plan: "deposit", first_payment_cents: 95970, paid_on: "2026-11-01" });
+    assert.equal(r.status, 200);
+    const list = (await owner.admin("sales-list")).data;
+    const sale = list.sales.find((x) => x.id === r.data.id);
+    assert.equal(sale.total_cents, 319900); assert.equal(sale.paid_cents, 95970); assert.equal(sale.balance_cents, 223930); assert.equal(sale.guest_email, "ama@example.com");
+    const sap = list.options.find((o) => o.id === "room_sapphire");
+    assert.equal(sap.sold, 1); assert.equal(sap.left, 0);
+    r = await owner.admin("sale-save", { option_id: "room_sapphire", guest_name: "Second Guest", plan: "full", first_payment_cents: 319900 });
+    assert.equal(r.status, 400); assert.match(r.data.error, /no tickets left/);
+    const pub = (await visitor.get("/api/site?fn=content")).data.rooms.find((x) => x.id === "room_sapphire");
+    assert.equal(pub.availability, "sold_out");
+    const o = (await owner.admin("overview")).data.totals;
+    assert.equal(o.residential_sold, 1); assert.equal(o.collected_cents, 95970); assert.equal(o.outstanding_cents, 223930);
   });
-  await check("CSV cells are protected against spreadsheet formula injection", async () => {
-    await joinWaitlist(new Client(), { name: "=HYPERLINK(\"x\")", email: "formula@example.com" });
-    const all = (await owner.admin("waitlist-csv", { kind: "all" })).data.csv;
-    assert.ok(all.includes("'=HYPERLINK"));
+  await check("Installments and refunds update the balance; overpaying is refused", async () => {
+    const sale = (await owner.admin("sales-list")).data.sales.find((x) => x.option_id === "room_sapphire" && x.status === "active");
+    assert.equal((await owner.admin("payment-add", { sale_id: sale.id, amount_cents: 300000 })).status, 400, "more than the balance");
+    assert.equal((await owner.admin("payment-add", { sale_id: sale.id, amount_cents: 100000, note: "2nd installment" })).status, 200);
+    let x = (await owner.admin("sales-list")).data.sales.find((y) => y.id === sale.id);
+    assert.equal(x.paid_cents, 195970); assert.equal(x.balance_cents, 123930); assert.equal(x.payments.length, 2);
+    assert.equal((await owner.admin("payment-add", { sale_id: sale.id, kind: "refund", amount_cents: 5000 })).status, 200);
+    x = (await owner.admin("sales-list")).data.sales.find((y) => y.id === sale.id);
+    assert.equal(x.paid_cents, 190970); assert.equal(x.balance_cents, 128930);
+    const refund = x.payments.find((p) => p.kind === "refund");
+    assert.equal((await owner.admin("payment-delete", { id: refund.id })).status, 200);
+    assert.equal((await owner.admin("sales-list")).data.sales.find((y) => y.id === sale.id).paid_cents, 195970);
   });
-  await check("Failed emails are visible to staff and can be retried", async () => {
-    const failed = (await staff.admin("emails-list", { status: "failed" })).data.rows;
-    const job = failed.find((j) => j.to_email === "nia@example.com");
-    assert.ok(job, "failed job not listed"); assert.match(job.last_error, /503|Simulated/);
-    const r = await staff.admin("email-retry", { id: job.id });
-    assert.equal(r.data.sent, 1);
-    assert.equal((await outbox()).filter((m) => m.to.includes("nia@example.com")).length, 1);
+  await check("Canceling a ticket frees it for someone else; restoring is refused if it has been resold", async () => {
+    const sale = (await owner.admin("sales-list")).data.sales.find((x) => x.option_id === "room_sapphire" && x.status === "active");
+    assert.equal((await owner.admin("sale-cancel", { id: sale.id })).status, 200);
+    assert.equal((await visitor.get("/api/site?fn=content")).data.rooms.find((x) => x.id === "room_sapphire").availability, "soon");
+    assert.equal((await owner.admin("sale-save", { option_id: "room_sapphire", guest_name: "New Guest", plan: "full", first_payment_cents: 319900 })).status, 200);
+    const back = await owner.admin("sale-cancel", { id: sale.id, restore: true });
+    assert.equal(back.status, 400); assert.match(back.data.error, /no tickets left/);
+  });
+  await check("Day immersions are paid in full and sell out at their ticket limit", async () => {
+    assert.equal((await owner.admin("sale-save", { option_id: "imm_one_day", guest_name: "Day Guest", plan: "deposit", first_payment_cents: 1000 })).status, 400);
+    const imms = (await owner.admin("rooms-list")).data.immersions.map((i) => (i.id === "imm_one_day" ? { ...i, ticket_limit: 1 } : i));
+    assert.equal((await owner.admin("immersions-save", { enabled: true, immersions: imms })).status, 200);
+    assert.equal((await visitor.get("/api/site?fn=content")).data.retreat.immersions.find((i) => i.id === "imm_one_day").sold_out, false);
+    assert.equal((await owner.admin("sale-save", { option_id: "imm_one_day", guest_name: "Day Guest", plan: "full", first_payment_cents: 44400 })).status, 200);
+    assert.equal((await visitor.get("/api/site?fn=content")).data.retreat.immersions.find((i) => i.id === "imm_one_day").sold_out, true);
+    assert.equal((await owner.admin("sale-save", { option_id: "imm_one_day", guest_name: "Late Guest", plan: "full" })).status, 400);
+    assert.equal((await owner.admin("rooms-list")).data.immersions.find((i) => i.id === "imm_one_day").sold, 1);
+  });
+  await check("The sales CSV lists guests and balances, protected against spreadsheet formula injection", async () => {
+    assert.equal((await owner.admin("sale-save", { option_id: "room_moonstone", guest_name: "=HYPERLINK(\"x\")", plan: "deposit", first_payment_cents: 80970 })).status, 200);
+    const csv = (await owner.admin("sales-csv")).data.csv;
+    assert.equal(csv.split("\r\n")[0], "recorded_on,guest_name,guest_email,guest_phone,ticket,plan,price,paid,balance,status,notes");
+    assert.ok(csv.includes("'=HYPERLINK")); assert.ok(/Moonstone,Deposit,2699\.00,809\.70,1889\.30,active/.test(csv));
   });
   await check("Unsubscribe link turns off marketing consent", async () => {
     const t = sec.sign({ e: "ama@example.com", k: "mkt" });
     const r = await fetch(`${BASE}/api/site?fn=unsubscribe&t=${encodeURIComponent(t)}`);
-    assert.equal(r.status, 200);
-    const mkt = (await owner.admin("waitlist-csv", { kind: "marketing" })).data.csv;
-    assert.ok(!mkt.toLowerCase().includes("ama@example.com"));
+    assert.equal(r.status, 200); assert.match(await r.text(), /unsubscribed/);
     const bad = await fetch(`${BASE}/api/site?fn=unsubscribe&t=forged.token`);
     assert.equal(bad.status, 400);
   });
@@ -482,6 +392,8 @@ async function signInGuest(c, email) {
       assert.equal((await req("overview")).status, 200);
       const ig = (await req("integrations")).data.items.find((i) => i.name === "Admin sign-in");
       assert.ok(ig && !ig.ok && /anyone with the \/admin\/ link/.test(ig.detail));
+      const pre = await fetch(`http://localhost:${PORT + 1}/api/site?fn=content&preview=1`);
+      assert.equal(pre.status, 200, "Preview works without signing in"); assert.equal((await pre.json()).preview, true);
     } finally { open.kill(); }
   });
   console.log(results.join("\n"));

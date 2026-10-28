@@ -14,16 +14,19 @@
       ]
     },
     {
-      "source": "/(admin|portal|api)(.*)",
+      "source": "/(admin|api)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
         { "key": "Cache-Control", "value": "no-store" }
       ]
     }
   ],
+  "redirects": [
+    { "source": "/portal", "destination": "/", "permanent": false },
+    { "source": "/portal/(.*)", "destination": "/", "permanent": false }
+  ],
   "rewrites": [
-    { "source": "/admin", "destination": "/admin/index.html" },
-    { "source": "/portal", "destination": "/portal/index.html" }
+    { "source": "/admin", "destination": "/admin/index.html" }
   ],
   "crons": [
     { "path": "/api/cron", "schedule": "0 13 * * *" }

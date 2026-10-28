@@ -9,11 +9,7 @@
   const S = { unsaved: false };
   const isOwner = () => ME && ME.role === "owner";
 
-  const TABS = [
-    ["overview", "Overview"], ["waitlist", "Waiting List"], ["clients", "Clients"], ["rooms", "Rooms and Inventory"],
-    ["bookings", "Bookings and Payments"], ["experience", "Client Experience"], ["content", "Content and Branding"],
-    ["comms", "Communications"], ["settings", "Settings and Audit"],
-  ];
+  const TABS = [["overview", "Overview"], ["page", "Landing page"], ["tickets", "Tickets"], ["payments", "Payments"], ["settings", "Settings"]];
 
   // ---------- helpers ----------
   async function call(action, body = {}) {
@@ -185,99 +181,53 @@
   // ---------- Overview ----------
   async function vOverview(v) {
     const d = await call("overview");
-    const w = d.waitlist, m = d.money;
-    const t = (n, l, s = "") => `<div class="tile"><div class="l">${l}</div><div class="n">${n}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
-    const c = d.checklist;
-    v.innerHTML = head("Overview", esc(d.retreat.name), `<a class="btn btn-outline" href="/" target="_blank" rel="noopener">View public page</a>`)
-      + (d.mail.failed ? `<div class="alert">${d.mail.failed} email${d.mail.failed === 1 ? "" : "s"} failed to send. <button class="linkish" data-go="comms">Review in Communications</button></div>` : "")
+    const t = (n, l, sub = "") => `<div class="tile"><div class="l">${l}</div><div class="n">${n}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>`;
+    const tt = d.totals, c = d.checklist;
+    const left = (o) => (o.tickets == null ? "No limit" : o.left === 0 ? tag("Sold out", "warn") : `${o.left} left`);
+    v.innerHTML = head("Overview", esc(d.retreat.name), `<a class="btn btn-outline" href="/" target="_blank" rel="noopener">View the landing page</a>`)
       + `<div class="tiles">
-        ${t(w.total || 0, "Waiting list", `${w.week || 0} joined in the last 7 days`)}
-        ${t(w.consented || 0, "Marketing opt-ins", "Agreed to updates and offerings")}
-        ${t(w.activated || 0, "Portal activated", "Verified their email")}
-        ${t(d.bookings.confirmed || 0, "Confirmed guests", `${d.bookings.pending || 0} pending`)}
-        ${t(`${d.conversion}%`, "Conversion", "Confirmed bookings ÷ waiting list")}
-        ${t(`${d.occupancy.sold} / ${d.occupancy.units}`, "Occupancy", "Units sold of units for sale")}
-        ${t(money(m.collected, { cents: true }), "Collected payments", m.refunded ? `${money(m.refunded, { cents: true })} refunded` : "Net of refunds")}
-        ${t(money(m.outstanding, { cents: true }), "Outstanding balances", m.overdue ? `${money(m.overdue, { cents: true })} overdue` : "Scheduled, not yet paid")}
+        ${t(d.retreat.reservations_open ? "Open" : "Closed", "Secure your spot", d.retreat.reservations_open ? "Guests can pay now" : "Payments open soon")}
+        ${t(`${tt.residential_sold} / ${tt.residential_tickets}`, "Residential tickets sold", "One ticket per guest")}
+        ${t(tt.sold, "All tickets sold", "Rooms and day immersions")}
+        ${t(money(tt.collected_cents, { cents: true }), "Collected", "All payments recorded, less refunds")}
+        ${t(money(tt.outstanding_cents, { cents: true }), "Balances due", "Still to be paid on active tickets")}
       </div>
-      <p class="small muted" style="margin-top:-12px">Collected payments are cash received, including deposits. They are tracked separately from earned revenue, which is recognized when the retreat takes place.</p>
-      <div class="grid2">
-        <div class="panel"><h2>Room interest</h2>${d.prefs.length ? `<ul class="checklist">${d.prefs.map((p) => `<li><span>${p.n}</span><span>${esc(p.room)}</span></li>`).join("")}</ul>` : '<p class="muted">No sign-ups yet.</p>'}</div>
-        <div class="panel"><h2>Launch checklist</h2><p class="small muted">Paid reservations stay closed until every item is complete.</p>${checklistHtml(c)}</div>
+      <div>
+        <div class="panel"><h2>Tickets</h2><div class="table-wrap"><table><thead><tr><th>Option</th><th>Price</th><th>Sold</th><th>Available</th></tr></thead><tbody>
+          ${d.options.filter((o) => o.visible).map((o) => `<tr><td>${esc(o.name)}</td><td>${money(o.price_cents)}</td><td>${o.sold}${o.tickets != null ? ` of ${o.tickets}` : ""}</td><td>${left(o)}</td></tr>`).join("")}
+          </tbody></table></div><p class="small muted">Record each guest’s payment in <button class="linkish" data-go="payments">Payments</button>; tickets sold and sold-out status update automatically.</p></div>
+        <div class="panel"><h2>Before opening Secure your spot</h2><p class="small muted">The payment button stays off until every item is complete.</p>${checklistHtml(c)}</div>
       </div>`;
     v.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => go(b.dataset.go)));
   }
   const checklistHtml = (c) => `<ul class="checklist">${c.items.map((i) => `<li><span class="${i.ok ? "ok" : "no"}" aria-label="${i.ok ? "Done" : "Not done"}">${i.ok ? "✓" : "✕"}</span><span>${esc(i.label)}${i.detail ? `<br><small class="muted">${esc(i.detail)}</small>` : ""}</span></li>`).join("")}</ul>`;
 
-  // ---------- Waiting list ----------
-  S.wl = { search: "", room: "", consent: "", status: "", source: "" };
-  async function vWaitlist(v) {
-    const d = await call("waitlist-list", S.wl);
-    const roomName = (id) => id === "any" ? "Any room" : !id || id === "undecided" ? "Not sure yet" : (d.rooms.find((r) => r.id === id) || {}).name || id;
-    v.innerHTML = head("Waiting List", `${d.rows.length} ${d.rows.length === 1 ? "person" : "people"} shown`,
-      `<button class="btn btn-outline" id="csv-all">Export CSV</button><button class="btn btn-outline" id="csv-mkt">Export marketing list</button>`)
-      + `<p class="small muted">Exports include name, email, room preference, consent, source, tags and status. Intentions and staff notes are never exported. The marketing list only includes people who opted in.</p>
-      <div class="filters" role="search">
-        <input type="search" id="f-search" placeholder="Search name or email" value="${esc(S.wl.search)}" aria-label="Search name or email">
-        <select id="f-room" aria-label="Room preference"><option value="">All rooms</option><option value="any">Any room</option><option value="undecided">Not sure yet</option>${d.rooms.map((r) => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join("")}</select>
-        <select id="f-consent" aria-label="Marketing consent"><option value="">Any consent</option><option value="yes">Opted in</option><option value="no">Not opted in</option></select>
-        <select id="f-status" aria-label="Status"><option value="">Active</option><option value="waiting">Waiting</option><option value="invited">Invited</option><option value="converted">Converted</option><option value="removed">Removed</option></select>
-        <select id="f-source" aria-label="Source"><option value="">All sources</option>${d.sources.map((s) => `<option>${esc(s)}</option>`).join("")}</select>
-      </div>
-      <div class="table-wrap">${d.rows.length ? `<table><thead><tr><th>Joined</th><th>Name</th><th>Room preference</th><th>Marketing</th><th>Source</th><th>Portal</th><th>Status</th><th></th></tr></thead><tbody>
-        ${d.rows.map((r) => `<tr><td>${fmtDate(r.created_at)}</td><td><span class="name">${esc(r.name)}</span><small>${esc(r.email_display)}</small>${r.intention ? `<small>“${esc(r.intention.slice(0, 90))}${r.intention.length > 90 ? "…" : ""}”</small>` : ""}</td>
-          <td>${esc(roomName(r.room_pref))}</td><td>${r.marketing_consent ? tag("Opted in", "ok") : tag("No")}<small>${esc(r.consent_version)}</small></td>
-          <td>${esc(r.source || "")}${r.tags && Object.keys(r.tags).length ? `<small>${esc(Object.entries(r.tags).map(([k, x]) => `${k}=${x}`).join(", "))}</small>` : ""}</td>
-          <td>${r.activated ? tag("Verified", "ok") : tag("Not yet")}</td><td>${esc(r.status)}${r.notes ? `<small>Note: ${esc(r.notes.slice(0, 60))}</small>` : ""}</td>
-          <td><button class="iconbtn" data-edit="${esc(r.id)}">Edit</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">No one matches these filters yet.</div>'}</div>`;
-    ["room", "consent", "status", "source"].forEach((k) => { const el = document.getElementById(`f-${k}`); el.value = S.wl[k]; el.onchange = () => { S.wl[k] = el.value; vWaitlist(v); }; });
-    const sEl = document.getElementById("f-search"); let tmr;
-    sEl.oninput = () => { clearTimeout(tmr); tmr = setTimeout(() => { S.wl.search = sEl.value; vWaitlist(v).then(() => { const n = document.getElementById("f-search"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }); }, 350); };
-    document.getElementById("csv-all").onclick = (e) => busy(e.target, async () => { const r = await call("waitlist-csv", { ...S.wl, kind: "all" }); download(r.filename, r.csv); });
-    document.getElementById("csv-mkt").onclick = (e) => busy(e.target, async () => { const r = await call("waitlist-csv", { ...S.wl, kind: "marketing" }); download(r.filename, r.csv); });
-    v.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = async () => {
-      const r = d.rows.find((x) => x.id === b.dataset.edit);
-      const out = await formDialog(`Edit ${r.name}`, `${r.intention ? `<p class="small"><strong>Intention:</strong> ${esc(r.intention)}</p>` : ""}
-        <label>Status<select name="status">${["waiting", "invited", "converted", "removed"].map((s) => `<option ${s === r.status ? "selected" : ""}>${s}</option>`).join("")}</select></label>
-        <label>Staff notes <span class="hint">(internal, never exported)</span><textarea name="notes" maxlength="2000">${esc(r.notes || "")}</textarea></label>`);
-      if (!out) return;
-      await busy(null, async () => { await call("waitlist-update", { id: r.id, ...out }); toast("Saved."); vWaitlist(v); });
-    }));
-  }
-
-  // ---------- Clients ----------
-  async function vClients(v) {
-    const d = await call("clients-list");
-    v.innerHTML = head("Clients", "Everyone on the waiting list or with a verified portal account.")
-      + `<div class="table-wrap">${d.rows.length ? `<table><thead><tr><th>Name</th><th>Portal account</th><th>Waiting list</th><th>Booking</th><th>Last sign-in</th><th></th></tr></thead><tbody>
-        ${d.rows.map((r) => `<tr><td><span class="name">${esc(r.name || "")}</span><small>${esc(r.email)}</small></td>
-          <td>${r.verified_at ? `${tag("Activated", "ok")}<small>${fmtDate(r.verified_at)}</small>` : tag("Not activated")}</td>
-          <td>${r.lead_status ? esc(r.lead_status) : '<span class="muted">Not on list</span>'}${r.joined_at ? `<small>${fmtDate(r.joined_at)}</small>` : ""}</td>
-          <td>${r.booking_status ? esc(r.booking_status) : '<span class="muted">None</span>'}</td>
-          <td>${r.last_login_at ? fmtDateTime(r.last_login_at) : '<span class="muted">Never</span>'}</td>
-          <td><div class="row"><button class="iconbtn" data-invite="${esc(r.email)}">${r.verified_at ? "Resend portal link" : "Send portal invitation"}</button>${isOwner() ? `<button class="iconbtn" data-email="${esc(r.email)}">Change email</button>` : ""}</div></td></tr>`).join("")}
-        </tbody></table>` : '<div class="empty">No clients yet.</div>'}</div>
-        <p class="small muted">A portal invitation asks the guest to sign in with her email and a one-time code. Name and email alone never unlock personal details.</p>`;
-    v.querySelectorAll("[data-invite]").forEach((b) => (b.onclick = () => busy(b, async () => { await call("client-invite", { email: b.dataset.invite }); toast("Invitation sent."); })));
-    v.querySelectorAll("[data-email]").forEach((b) => (b.onclick = async () => {
-      const out = await formDialog("Change client email", `<p class="small">Only change an email after confirming the request with the guest from her current address. She will be signed out everywhere.</p>
-        <label>Current email<input type="email" name="from" value="${esc(b.dataset.email)}" readonly></label>
-        <label>New email<input type="email" name="to" required></label><label>Reason<input type="text" name="reason" maxlength="300" placeholder="For example: requested by phone on Oct 9, confirmed by reply"></label>`, "Change email");
-      if (!out) return;
-      await busy(null, async () => { await call("client-email-change", out); toast("Email changed."); vClients(v); });
-    }));
-  }
-
-  // ---------- Rooms ----------
-  async function vRooms(v) {
+  async function vTickets(v) {
     const d = await call("rooms-list");
     S.rooms = d.rooms;
     S.roomPhotos = {};
     d.rooms.forEach((r) => (S.roomPhotos[r.id] = (r.photos || []).map((p) => ({ ...p }))));
-    v.innerHTML = head("Rooms and Inventory", "Prices, price basis, real inventory and room details. Changes to prices and inventory are recorded in the change history.",
+    v.innerHTML = head("Tickets", "Every room and day immersion guests can choose under Secure your spot. A room has one ticket per guest. Tickets sold come from the payments you record.",
       isOwner() ? '<button class="btn btn-primary" id="add-room">Add a room</button>' : "")
-      + `<div class="okbox small">Prices are stored exactly as entered. While a room’s price basis is “to be confirmed,” paid checkout stays off. Occupancy labels are shown to guests but never used to calculate capacity or revenue; set “Guest capacity” once confirmed.</div>
-      <div id="new-room"></div>${d.rooms.map((r) => roomForm(r, d.basisLabels)).join("")}`;
+      + `<div class="okbox small">Prices are stored exactly as entered and are per guest. A room sells out when all of its tickets (guests) are sold; hide a room to stop offering it.</div>
+      <div id="new-room"></div>${d.rooms.map((r) => roomForm(r, d.basisLabels)).join("")}
+      <div class="panel"><h2>Day immersions${ownerNote()}</h2><p class="small muted">For guests who join without staying overnight; always paid in full. Leave the ticket limit blank for no limit, and the early-bird price blank to offer only the standard price. Their wording is edited in Landing page.</p>
+        <form class="form" id="imm-form" novalidate><label class="check"><input type="checkbox" name="enabled" ${d.immersions_enabled ? "checked" : ""} ${isOwner() ? "" : "disabled"}> Offer day immersions</label>
+          <div id="imm"></div>${isOwner() ? '<div class="row"><button type="button" class="iconbtn" id="imm-add">Add immersion</button><button class="btn btn-primary" type="submit">Save day immersions</button></div>' : ""}</form></div>`;
+    S.imm = (d.immersions || []).map((x) => ({ ...x }));
+    renderImm();
+    const ia = document.getElementById("imm-add");
+    if (ia) ia.onclick = () => { S.imm.push({ id: "", name: "", days: 1, price_cents: null, early_bird_price_cents: null, ticket_limit: null, sold: 0 }); renderImm(); };
+    const imf = document.getElementById("imm-form");
+    imf.addEventListener("input", () => (S.unsaved = true));
+    imf.onsubmit = (ev) => {
+      ev.preventDefault();
+      if (S.imm.some((i) => Number.isNaN(i.price_cents) || Number.isNaN(i.early_bird_price_cents))) return toast("Enter valid immersion prices.", true);
+      busy(imf.querySelector("button[type=submit]"), async () => {
+        await call("immersions-save", { enabled: imf.enabled.checked, immersions: S.imm.map(({ sold, ...i }) => i) });
+        S.unsaved = false; toast("Day immersions saved."); vTickets(v);
+      });
+    };
     wireRoomForms(v, d.basisLabels);
     const add = document.getElementById("add-room");
     if (add) add.onclick = () => {
@@ -291,12 +241,12 @@
 
   function roomForm(r, basis, isNew) {
     const own = isOwner() ? "" : "disabled";
-    const ready = !r.id ? "" : [r.price_basis !== "unconfirmed", r.includes_admission !== "unconfirmed", r.guest_capacity, r.beds, r.inventory_confirmed, (r.photos || []).length].every(Boolean);
+    const ready = !r.id ? "" : [r.price_basis !== "unconfirmed", r.includes_admission !== "unconfirmed", r.guest_capacity, r.beds, (r.photos || []).length].every(Boolean);
     const sel = (name, opts, val, dis) => `<select name="${name}" ${dis}>${opts.map(([k, l]) => `<option value="${k}" ${k === val ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
     const txt = (name, label, val, opts = {}) => `<label class="${opts.wide ? "wide" : ""}">${label}${opts.hint ? ` <span class="hint">${opts.hint}</span>` : ""}${opts.area ? `<textarea name="${name}" maxlength="${opts.max || 600}" ${opts.dis || ""}>${esc(val || "")}</textarea>` : `<input type="text" name="${name}" value="${esc(val || "")}" maxlength="${opts.max || 300}" ${opts.dis || ""}>`}</label>`;
     return `<details class="panel room-card" ${isNew ? "open" : ""} data-room="${esc(r.id)}">
       <summary><span><span class="title">${esc(r.name || "New room")}</span> ${r.id ? `<span class="muted">${money(r.price_cents)}</span>` : ""}</span>
-        <span class="row">${r.id ? `${r.price_basis === "unconfirmed" ? tag("Basis to confirm", "warn") : tag(basis[r.price_basis], "ok")} ${ready ? tag("Ready to sell", "ok") : tag("Details needed", "warn")} ${r.visible ? "" : tag("Hidden")} ${tag(`${r.waitlist_interest || 0} interested`)}` : ""}</span></summary>
+        <span class="row">${r.id ? `${r.price_basis === "unconfirmed" ? tag("Basis to confirm", "warn") : tag(basis[r.price_basis], "ok")} ${ready ? tag("Ready to sell", "ok") : tag("Details needed", "warn")} ${r.visible ? "" : tag("Hidden")} ${tag(`${r.sold || 0} of ${r.guest_capacity ?? "?"} sold`, r.guest_capacity && r.sold >= r.guest_capacity ? "warn" : "")}` : ""}</span></summary>
       <form class="form" novalidate>
         <div class="fgrid">
           ${txt("name", "Room name", r.name, { max: 80 })}
@@ -304,7 +254,7 @@
           <label>Price basis${ownerNote()}${sel("price_basis", Object.entries(basis).map(([k, l]) => [k, k === "unconfirmed" ? "To be confirmed" : l]), r.price_basis, own)}</label>
           <label>Includes retreat admission?${ownerNote()}${sel("includes_admission", [["unconfirmed", "To be confirmed"], ["yes", "Yes"], ["no", "No, sold separately"]], r.includes_admission, own)}</label>
           ${txt("occupancy_label", "Occupancy (shown to guests)", r.occupancy_label, { hint: "e.g. Double occupancy" })}
-          <label>Guest capacity${ownerNote()} <span class="hint">(blank = to confirm)</span><input type="number" name="guest_capacity" min="1" max="20" value="${r.guest_capacity ?? ""}" ${own}></label>
+          <label>Tickets (guests)${ownerNote()} <span class="hint">(one per guest)</span><input type="number" name="guest_capacity" min="1" max="20" value="${r.guest_capacity ?? ""}" ${own}></label>
           ${txt("beds", "Actual beds", r.beds, { hint: "e.g. One queen bed" })}
           ${txt("bathroom", "Bathroom access", r.bathroom, { hint: "e.g. Private en suite" })}
           ${txt("features", "Features", r.features)}
@@ -317,12 +267,7 @@
           <div class="thumbs" data-thumbs></div>
           <label class="iconbtn" style="display:inline-flex;margin-top:10px">Upload photo<input type="file" accept="image/jpeg,image/png,image/webp" data-photo-up class="sr-only"></label></div>
         <div class="row"><label class="check"><input type="checkbox" name="visible" ${r.visible ? "checked" : ""}> Show on the public page</label>
-          <label class="check"><input type="checkbox" name="inventory_confirmed" ${r.inventory_confirmed ? "checked" : ""} ${own}> Inventory confirmed${ownerNote()}</label></div>
-        ${r.id ? `<div class="units"><h3>Inventory units</h3><p class="small muted">Each unit is one sellable room or bed space. Add one per real unit; sold units are managed by their booking.</p>
-          <div class="table-wrap"><table><thead><tr><th>Unit</th><th>Status</th><th></th></tr></thead><tbody>
-          ${r.units.map((u) => `<tr data-unit="${esc(u.id)}"><td><input type="text" value="${esc(u.label)}" data-ulabel ${own} aria-label="Unit name"></td><td>${u.status === "sold" ? "Sold" : `<select data-ustatus ${own} aria-label="Unit status"><option value="available" ${u.status === "available" ? "selected" : ""}>Available</option><option value="blocked" ${u.status === "blocked" ? "selected" : ""}>Blocked (not for sale)</option></select>`}${u.held ? " <small>On hold</small>" : ""}</td>
-            <td>${isOwner() && u.status !== "sold" ? '<div class="row"><button type="button" class="iconbtn" data-usave>Save</button><button type="button" class="iconbtn" data-udel>Remove</button></div>' : ""}</td></tr>`).join("")}
-          </tbody></table></div>${isOwner() ? '<button type="button" class="iconbtn" data-uadd style="margin-top:8px">Add unit</button>' : ""}</div>` : ""}
+</div>
         <div class="row" style="justify-content:space-between"><button class="btn btn-primary" type="submit">${r.id ? "Save room" : "Create room"}</button>${r.id && isOwner() ? '<button class="btn btn-danger" type="button" data-rdel>Delete room</button>' : ""}</div>
       </form></details>`;
   }
@@ -363,38 +308,54 @@
           occupancy_label: fd.get("occupancy_label"), guest_capacity: isOwner() ? fd.get("guest_capacity") : room.guest_capacity,
           beds: fd.get("beds"), bathroom: fd.get("bathroom"), features: fd.get("features"), accessibility: fd.get("accessibility"),
           difference_note: fd.get("difference_note"), description: fd.get("description"), photos: S.roomPhotos[id],
-          visible: f.visible.checked, inventory_confirmed: isOwner() ? f.inventory_confirmed.checked : Boolean(room.inventory_confirmed),
+          visible: f.visible.checked,
         };
-        busy(f.querySelector("button[type=submit]"), async () => { await call("room-save", body); S.unsaved = false; toast("Room saved."); vRooms(v); });
+        busy(f.querySelector("button[type=submit]"), async () => { await call("room-save", body); S.unsaved = false; toast("Room saved."); vTickets(v); });
       };
       const del = card.querySelector("[data-rdel]");
-      if (del) del.onclick = async () => { if (await confirmBox("Delete this room?", "This removes the room and its inventory. Rooms with bookings can’t be deleted; hide them instead.", "Delete", true)) busy(del, async () => { await call("room-delete", { id }); toast("Room deleted."); vRooms(v); }); };
-      card.querySelectorAll("[data-unit]").forEach((tr) => {
-        const uid_ = tr.dataset.unit;
-        const save = tr.querySelector("[data-usave]"), rm = tr.querySelector("[data-udel]");
-        if (save) save.onclick = () => busy(save, async () => { await call("unit-save", { id: uid_, label: tr.querySelector("[data-ulabel]").value, status: tr.querySelector("[data-ustatus]").value }); toast("Unit saved."); });
-        if (rm) rm.onclick = async () => { if (await confirmBox("Remove this unit?", "It will no longer be available to sell.", "Remove", true)) busy(rm, async () => { await call("unit-delete", { id: uid_ }); vRooms(v); }); };
-      });
-      const addU = card.querySelector("[data-uadd]");
-      if (addU) addU.onclick = async () => {
-        const out = await formDialog("Add an inventory unit", `<label>Unit name<input type="text" name="label" required maxlength="80" placeholder="For example: Sapphire, or Moonstone bed 2"></label>`, "Add unit");
-        if (out) busy(addU, async () => { await call("unit-save", { room_type_id: id, label: out.label, status: "available" }); vRooms(v); });
-      };
+      if (del) del.onclick = async () => { if (await confirmBox("Delete this room?", "This removes the room. Rooms with sales recorded can’t be deleted; hide them instead.", "Delete", true)) busy(del, async () => { await call("room-delete", { id }); toast("Room deleted."); vTickets(v); }); };
     });
   }
 
   // ---------- Bookings and payments ----------
-  async function vBookings(v) {
-    const [rg, bl, rl] = await Promise.all([call("retreat-get"), call("bookings-list"), call("rooms-list")]);
+  async function vPayments(v) {
+    const [rg, sl, rl] = await Promise.all([call("retreat-get"), call("sales-list"), call("rooms-list")]);
     const r = rg.retreat, t = r.terms || {}, c = rg.checklist, own = isOwner() ? "" : "disabled";
     S.inst = (t.installments || []).map((x) => ({ ...x }));
     const ta = (name, label, hint) => `<label class="wide">${label}${hint ? ` <span class="hint">${hint}</span>` : ""}<textarea name="${name}" maxlength="4000" ${own}>${esc(t[name] || "")}</textarea></label>`;
-    v.innerHTML = head("Bookings and Payments", "Reservation status, payment terms and reconciliation.")
-      + `<div class="panel"><h2>Reservations are ${r.reservations_open ? "open" : "closed"}</h2>
-          <p class="small muted">Lead status, account activation, booking status and payment status are tracked separately. A verified email is not a reservation, a checkout redirect is not proof of payment, and a room preference is not a hold. A booking is confirmed only by a verified payment event or an audited manual confirmation.</p>
+    const pct = sl.deposit_percent;
+    const optLabel = (o) => `${o.name} · ${money(o.price_cents)}${o.tickets != null ? ` · ${o.left} left` : ""}`;
+    const forSale = sl.options.filter((o) => o.visible);
+    v.innerHTML = head("Payments", "Record each guest’s payment, track balances, and set where the Secure your spot button sends guests.", '<button class="btn btn-outline" id="sales-csv">Export CSV</button>')
+      + `<div class="panel"><h2>Secure your spot is ${r.reservations_open ? "open" : "closed"}</h2>
+          <p class="small muted">${r.reservations_open ? "Guests can choose an option and pay now." : "The button on the landing page says “Payments open soon.” It can be turned on once everything below is complete."}</p>
           ${checklistHtml(c)}
-          ${isOwner() ? `<div class="row" style="margin-top:12px"><button class="btn ${r.reservations_open ? "btn-danger" : "btn-primary"}" id="toggle-res" ${!r.reservations_open && !c.ready ? "disabled" : ""}>${r.reservations_open ? "Close reservations" : "Open reservations"}</button>${!c.ready ? '<span class="small muted">Complete the checklist to enable.</span>' : ""}</div>` : ""}</div>
-        <div class="panel"><h2>Payment terms${ownerNote()}</h2><p class="small muted">Shown on the public page once confirmed. Bookings keep the terms they were sold with; editing these never changes an existing booking.</p>
+          ${isOwner() ? `<div class="row" style="margin-top:12px"><button class="btn ${r.reservations_open ? "btn-danger" : "btn-primary"}" id="toggle-res" ${!r.reservations_open && !c.ready ? "disabled" : ""}>${r.reservations_open ? "Turn payments off" : "Turn payments on"}</button>${!r.reservations_open && !c.ready ? '<span class="small muted">Complete the checklist to enable.</span>' : ""}</div>` : ""}</div>
+        <div class="panel"><h2>Record a payment</h2><p class="small muted">When a guest pays on your payment site, record it here. Their ticket counts as sold right away, and the room or immersion shows as sold out when its tickets are gone.</p>
+          <form class="form" id="sale-form" novalidate><div class="fgrid">
+            <label class="wide">Ticket<select name="option_id" required><option value="">Choose a room or day immersion</option>
+              <optgroup label="Rooms">${forSale.filter((o) => o.kind === "room").map((o) => `<option value="${esc(o.id)}" ${o.left === 0 ? "disabled" : ""}>${esc(optLabel(o))}</option>`).join("")}</optgroup>
+              <optgroup label="Day immersions">${forSale.filter((o) => o.kind === "immersion").map((o) => `<option value="${esc(o.id)}" ${o.left === 0 ? "disabled" : ""}>${esc(optLabel(o))}</option>`).join("")}</optgroup></select></label>
+            <label>Guest name<input type="text" name="guest_name" maxlength="120" required autocomplete="off"></label>
+            <label>Email <span class="hint">(optional)</span><input type="email" name="guest_email" autocomplete="off"></label>
+            <label>Phone <span class="hint">(optional)</span><input type="text" name="guest_phone" maxlength="40" autocomplete="off"></label>
+            <label>Paid by<select name="plan"><option value="deposit">${pct ? `Deposit (${pct}%)` : "Deposit"}</option><option value="full">Paid in full</option></select></label>
+            <label>Amount paid<div class="money">$<input type="text" name="amount" inputmode="decimal"></div></label>
+            <label>Date paid<input type="date" name="paid_on" value="${new Date().toISOString().slice(0, 10)}"></label>
+            <label class="wide">Notes <span class="hint">(optional, for example the payment site’s receipt number)</span><input type="text" name="notes" maxlength="1000"></label>
+          </div><p class="small muted" id="sale-hint"></p><div><button class="btn btn-primary" type="submit">Record payment</button></div></form></div>
+        <div class="panel"><h2>Guests and payments</h2>
+          <div class="tiles" style="margin-bottom:12px"><div class="tile"><div class="l">Collected</div><div class="n">${money(sl.totals.collected_cents, { cents: true })}</div></div><div class="tile"><div class="l">Balances due</div><div class="n">${money(sl.totals.outstanding_cents, { cents: true })}</div></div><div class="tile"><div class="l">Tickets sold</div><div class="n">${sl.totals.sold}</div></div></div>
+          ${sl.sales.length ? sl.sales.map((x) => saleCard(x)).join("") : '<p class="muted">No payments recorded yet.</p>'}</div>
+        <div class="panel"><h2>Payment links${ownerNote()}</h2><p class="small muted">Where the Secure your spot button sends guests (your payment site). Rooms can be paid by deposit or in full; day immersions are paid in full. Leave a room blank to use the default links. The button only works while payments are turned on. When a guest pays, record it above so their ticket counts as sold.</p>
+          <form class="form" id="links-form" novalidate><div class="table-wrap"><table><thead><tr><th>Option</th><th>Deposit link</th><th>Pay in full link</th></tr></thead><tbody>
+            ${[["*", "Default for every room", false], ...rl.rooms.filter((x) => x.visible).map((x) => [x.id, x.name, false]), ...(r.immersions || []).map((i) => [i.id, i.name, true])].map(([id, name, imm]) => {
+              const l = (r.payment_links || {})[id] || {};
+              return `<tr><td>${esc(name)}</td><td>${imm ? '<span class="small muted">Paid in full</span>' : `<input type="url" data-link="${esc(id)}" data-k="deposit" value="${esc(l.deposit || "")}" placeholder="https://" aria-label="${esc(name)} deposit link" ${own}>`}</td>
+                <td><input type="url" data-link="${esc(id)}" data-k="full" value="${esc(l.full || "")}" placeholder="https://" aria-label="${esc(name)} pay in full link" ${own}></td></tr>`;
+            }).join("")}</tbody></table></div>
+          ${isOwner() ? '<div><button class="btn btn-primary" type="submit">Save payment links</button></div>' : ""}</form></div>
+        <div class="panel"><h2>Payment terms${ownerNote()}</h2><p class="small muted">Shown on the landing page once approved.</p>
           <form class="form" id="terms-form" novalidate><div class="fgrid">
             <label>Deposit amount<div class="money">$<input type="text" name="deposit" inputmode="decimal" value="${dollars(t.deposit_cents)}" ${own}></div></label>
             <label>Or deposit percent<input type="number" name="deposit_percent" min="1" max="100" value="${t.deposit_percent ?? ""}" ${own}></label>
@@ -403,32 +364,23 @@
             ${ta("taxes_text", "Taxes")}
             ${ta("installments_text", "Payment schedule (shown to guests)")}
             <div class="wide"><h3>Installments</h3><div id="inst"></div>${isOwner() ? '<button type="button" class="iconbtn" id="inst-add">Add installment</button>' : ""}
-              <p class="small muted">Automatic future charges need the guest’s explicit authorization and arrive with checkout in Phase 2.</p></div>
+              <p class="small muted">Installment due dates guests should know about. Payments themselves are taken on your payment site.</p></div>
             ${ta("cancellation_text", "Cancellation terms")}
             ${ta("transfer_text", "Transfer terms")}
             ${ta("refund_text", "Refund terms")}
           </div>
           <label class="check"><input type="checkbox" name="terms_confirmed" ${r.terms_confirmed ? "checked" : ""} ${own}> These payment terms are approved</label>
           <label class="check"><input type="checkbox" name="legal_confirmed" ${r.legal_confirmed ? "checked" : ""} ${own}> The agreement and policy text from the attorney is in place and approved</label>
-          ${isOwner() ? '<div><button class="btn btn-primary" type="submit">Save payment terms</button></div>' : ""}</form></div>
-        <div class="panel"><h2>Payment links${ownerNote()}</h2><p class="small muted">Where the Secure your spot button sends guests (your payment site). Rooms can be paid by deposit or in full; day immersions are paid in full. Leave a room blank to use the default links. The buttons only work while reservations are open. When a room is paid for, mark its unit sold in Rooms and Inventory so no one else can choose it.</p>
-          <form class="form" id="links-form" novalidate><div class="table-wrap"><table><thead><tr><th>Option</th><th>Deposit link</th><th>Pay in full link</th></tr></thead><tbody>
-            ${[["*", "Default for every room", false], ...rl.rooms.map((x) => [x.id, x.name, false]), ...(r.immersions || []).map((i) => [i.id, i.name, true])].map(([id, name, imm]) => {
-              const l = (r.payment_links || {})[id] || {};
-              return `<tr><td>${esc(name)}</td><td>${imm ? '<span class="small muted">Paid in full</span>' : `<input type="url" data-link="${esc(id)}" data-k="deposit" value="${esc(l.deposit || "")}" placeholder="https://" aria-label="${esc(name)} deposit link" ${own}>`}</td>
-                <td><input type="url" data-link="${esc(id)}" data-k="full" value="${esc(l.full || "")}" placeholder="https://" aria-label="${esc(name)} pay in full link" ${own}></td></tr>`;
-            }).join("")}</tbody></table></div>
-          ${isOwner() ? '<div><button class="btn btn-primary" type="submit">Save payment links</button></div>' : ""}</form></div>
-        <div class="panel"><h2>Bookings</h2>${bl.rows.length ? `<div class="table-wrap"><table><thead><tr><th>Guest</th><th>Room</th><th>Status</th><th>Total</th><th>Confirmed by</th></tr></thead><tbody>${bl.rows.map((b) => `<tr><td><span class="name">${esc(b.name || "")}</span><small>${esc(b.email)}</small></td><td>${esc(b.room || "")}</td><td>${esc(b.status)}</td><td>${money(b.total_cents, { cents: true })}</td><td>${esc(b.confirmed_by || "")}</td></tr>`).join("")}</tbody></table></div>` : '<p class="muted">No bookings yet. Paid reservations arrive in Phase 2, after the checklist above is complete.</p>'}</div>
-        <div class="panel"><h2>Needs review</h2>${bl.review.length ? `<ul>${bl.review.map((x) => `<li>${esc(x.provider)} ${esc(x.provider_ref)}: ${money(x.amount_cents, { cents: true })}</li>`).join("")}</ul>` : '<p class="muted">Nothing to reconcile. Payments that can’t be matched to a booking will appear here instead of overselling a room.</p>'}</div>`;
+          ${isOwner() ? '<div><button class="btn btn-primary" type="submit">Save payment terms</button></div>' : ""}</form></div>`;
+    wireSales(v, sl, pct);
     renderInst();
     const add = document.getElementById("inst-add");
     if (add) add.onclick = () => { S.inst.push({ label: "", amount_cents: null, percent: null, due_date: "" }); renderInst(); };
     const tog = document.getElementById("toggle-res");
     if (tog) tog.onclick = async () => {
       const open = !r.reservations_open;
-      if (await confirmBox(open ? "Open reservations?" : "Close reservations?", open ? "Guests will be able to reserve rooms." : "Guests will no longer be able to start new reservations.", open ? "Open" : "Close", !open))
-        busy(tog, async () => { await call("reservations-toggle", { open }); vBookings(v); });
+      if (await confirmBox(open ? "Turn payments on?" : "Turn payments off?", open ? "The Secure your spot button will send guests to your payment links." : "The Secure your spot button will say “Payments open soon” again.", open ? "Turn on" : "Turn off", !open))
+        busy(tog, async () => { await call("reservations-toggle", { open }); vPayments(v); });
     };
     const lf = document.getElementById("links-form");
     lf.addEventListener("input", () => (S.unsaved = true));
@@ -436,7 +388,7 @@
       ev.preventDefault();
       const links = {};
       lf.querySelectorAll("[data-link]").forEach((inp) => { (links[inp.dataset.link] ||= {})[inp.dataset.k] = inp.value.trim(); });
-      busy(lf.querySelector("button[type=submit]"), async () => { await call("payment-links-save", { links }); S.unsaved = false; toast("Payment links saved."); vBookings(v); });
+      busy(lf.querySelector("button[type=submit]"), async () => { await call("payment-links-save", { links }); S.unsaved = false; toast("Payment links saved."); vPayments(v); });
     };
     const f = document.getElementById("terms-form");
     f.addEventListener("input", () => (S.unsaved = true));
@@ -447,9 +399,79 @@
       if (Number.isNaN(dep)) return toast("Enter a valid deposit amount.", true);
       const body = { deposit_cents: dep, deposit_percent: fd.get("deposit_percent"), installments: S.inst.map((i) => ({ ...i })), terms_confirmed: f.terms_confirmed.checked, legal_confirmed: f.legal_confirmed.checked };
       ["deposit_text", "fees_text", "taxes_text", "installments_text", "cancellation_text", "transfer_text", "refund_text"].forEach((k) => (body[k] = fd.get(k)));
-      busy(f.querySelector("button[type=submit]"), async () => { await call("terms-save", body); S.unsaved = false; toast("Payment terms saved."); vBookings(v); });
+      busy(f.querySelector("button[type=submit]"), async () => { await call("terms-save", body); S.unsaved = false; toast("Payment terms saved."); vPayments(v); });
     };
   }
+  // One guest's ticket: what it cost, what's been paid, and every payment toward it.
+  function saleCard(x) {
+    const canceled = x.status === "canceled";
+    return `<details class="panel sale-card${canceled ? " canceled" : ""}" data-sale="${esc(x.id)}"><summary>
+      <span><span class="title">${esc(x.guest_name)}</span> <span class="muted">${esc(x.option_name)}</span></span>
+      <span class="row">${canceled ? tag("Canceled") : x.balance_cents > 0 ? tag(`${money(x.balance_cents, { cents: true })} due`, "warn") : tag("Paid in full", "ok")}
+        <span class="muted">${money(x.paid_cents, { cents: true })} of ${money(x.total_cents, { cents: true })}</span></span></summary>
+      <p class="small">${[x.guest_email && `<a href="mailto:${esc(x.guest_email)}">${esc(x.guest_email)}</a>`, x.guest_phone && esc(x.guest_phone), x.plan === "deposit" ? "Deposit plan" : "Paid in full plan", `recorded ${fmtDate(x.created_at)}`].filter(Boolean).join(" · ")}${x.notes ? `<br>${esc(x.notes)}` : ""}</p>
+      <div class="table-wrap"><table><thead><tr><th>Date</th><th>Payment</th><th>Amount</th><th></th></tr></thead><tbody>
+        ${x.payments.length ? x.payments.map((p) => `<tr><td>${fmtDate(p.paid_on)}</td><td>${p.kind === "refund" ? "Refund" : "Payment"}${p.note ? ` · ${esc(p.note)}` : ""}</td><td>${p.kind === "refund" ? "−" : ""}${money(p.amount_cents, { cents: true })}</td>
+          <td><button type="button" class="iconbtn" data-pdel="${esc(p.id)}">Remove</button></td></tr>`).join("") : '<tr><td colspan="4" class="muted">No payments yet.</td></tr>'}</tbody></table></div>
+      ${canceled ? "" : `<form class="form pay-form" novalidate><div class="fgrid">
+        <label>Amount<div class="money">$<input type="text" name="amount" inputmode="decimal" value="${x.balance_cents > 0 ? dollars(x.balance_cents) : ""}"></div></label>
+        <label>Date<input type="date" name="paid_on" value="${new Date().toISOString().slice(0, 10)}"></label>
+        <label>Type<select name="kind"><option value="payment">Payment</option><option value="refund">Refund</option></select></label>
+        <label>Note <span class="hint">(optional)</span><input type="text" name="note" maxlength="200" placeholder="For example: 2nd installment"></label>
+      </div><div class="row"><button class="btn btn-primary" type="submit">Add payment</button></div></form>`}
+      <div class="row" style="justify-content:flex-end"><button type="button" class="btn ${canceled ? "btn-outline" : "btn-danger"}" data-cancel="${canceled ? "restore" : "cancel"}">${canceled ? "Restore ticket" : "Cancel ticket"}</button></div>
+    </details>`;
+  }
+
+  function wireSales(v, sl, pct) {
+    const f = document.getElementById("sale-form");
+    const hint = document.getElementById("sale-hint");
+    const fill = () => {
+      const o = sl.options.find((x) => x.id === f.option_id.value);
+      const plan = f.plan;
+      if (o && o.kind === "immersion") plan.value = "full";
+      plan.querySelector('[value="deposit"]').disabled = Boolean(o && o.kind === "immersion");
+      if (!o) { hint.textContent = ""; return; }
+      const amt = plan.value === "deposit" && pct ? Math.round((o.price_cents * pct) / 100) : o.price_cents;
+      f.amount.value = dollars(amt);
+      hint.textContent = plan.value === "deposit" ? `Ticket price ${money(o.price_cents)}; the balance of ${money(o.price_cents - amt, { cents: true })} will show as due.` : `Ticket price ${money(o.price_cents)}.`;
+    };
+    f.option_id.onchange = fill; f.plan.onchange = fill;
+    f.addEventListener("input", () => (S.unsaved = true));
+    f.onsubmit = (ev) => {
+      ev.preventDefault();
+      const amount = toCents(f.amount.value);
+      if (!f.option_id.value) return toast("Choose a room or day immersion.", true);
+      if (Number.isNaN(amount)) return toast("Enter a valid amount.", true);
+      busy(f.querySelector("button[type=submit]"), async () => {
+        await call("sale-save", { option_id: f.option_id.value, guest_name: f.guest_name.value, guest_email: f.guest_email.value, guest_phone: f.guest_phone.value,
+          plan: f.plan.value, first_payment_cents: amount, paid_on: f.paid_on.value, notes: f.notes.value });
+        S.unsaved = false; toast("Payment recorded."); vPayments(v);
+      });
+    };
+    v.querySelectorAll("[data-sale]").forEach((card) => {
+      const id = card.dataset.sale;
+      const pf = card.querySelector(".pay-form");
+      if (pf) pf.onsubmit = (ev) => {
+        ev.preventDefault();
+        const amount = toCents(pf.amount.value);
+        if (!amount || Number.isNaN(amount)) return toast("Enter a valid amount.", true);
+        busy(pf.querySelector("button[type=submit]"), async () => { await call("payment-add", { sale_id: id, amount_cents: amount, paid_on: pf.paid_on.value, kind: pf.kind.value, note: pf.note.value }); S.unsaved = false; toast(pf.kind.value === "refund" ? "Refund recorded." : "Payment recorded."); vPayments(v); });
+      };
+      card.querySelectorAll("[data-pdel]").forEach((b) => (b.onclick = async () => {
+        if (await confirmBox("Remove this payment?", "Use this to correct a mistake. To record money returned to a guest, add a refund instead.", "Remove", true))
+          busy(b, async () => { await call("payment-delete", { id: b.dataset.pdel }); vPayments(v); });
+      }));
+      const cb = card.querySelector("[data-cancel]");
+      cb.onclick = async () => {
+        const restore = cb.dataset.cancel === "restore";
+        if (await confirmBox(restore ? "Restore this ticket?" : "Cancel this ticket?", restore ? "It will count as sold again." : "The ticket is freed for someone else. Payments stay on record; add a refund if money was returned.", restore ? "Restore" : "Cancel ticket", !restore))
+          busy(cb, async () => { await call("sale-cancel", { id, restore }); vPayments(v); });
+      };
+    });
+    document.getElementById("sales-csv").onclick = (e) => busy(e.target, async () => { const r = await call("sales-csv"); download(r.filename, r.csv); });
+  }
+
   function renderInst() {
     const box = document.getElementById("inst"); if (!box) return;
     const own = isOwner() ? "" : "disabled";
@@ -474,16 +496,17 @@
       <label>Days<input type="number" name="imm_days_${n}" data-k="days" min="1" max="14" value="${i.days ?? ""}" ${own}></label>
       <label>Price<div class="money">$<input type="text" name="imm_price_${n}" data-k="price" inputmode="decimal" value="${dollars(i.price_cents)}" ${own}></div></label>
       <label>Early-bird price <span class="hint">(optional)</span><div class="money">$<input type="text" name="imm_eb_${n}" data-k="eb" inputmode="decimal" value="${dollars(i.early_bird_price_cents)}" ${own}></div></label>
+      <label>Ticket limit <span class="hint">(blank = no limit; ${i.sold || 0} sold)</span><input type="number" name="imm_limit_${n}" data-k="limit" min="0" max="10000" value="${i.ticket_limit ?? ""}" ${own}></label>
       ${isOwner() ? `<div style="align-self:end"><button type="button" class="iconbtn" data-mrm="${n}">Remove</button></div>` : ""}</div>`).join("") : '<p class="small muted">No immersions yet.</p>';
     box.querySelectorAll("[data-m]").forEach((row) => row.querySelectorAll("[data-k]").forEach((inp) => (inp.oninput = () => {
       const it = S.imm[+row.dataset.m], k = inp.dataset.k;
       if (k === "price") it.price_cents = toCents(inp.value); else if (k === "eb") it.early_bird_price_cents = toCents(inp.value);
-      else if (k === "days") it.days = inp.value === "" ? null : Number(inp.value); else it[k] = inp.value;
+      else if (k === "days" || k === "limit") it[k === "days" ? "days" : "ticket_limit"] = inp.value === "" ? null : Number(inp.value); else it[k] = inp.value;
     })));
     box.querySelectorAll("[data-mrm]").forEach((b) => (b.onclick = () => { S.imm.splice(+b.dataset.mrm, 1); S.unsaved = true; renderImm(); }));
   }
 
-  // ---------- Content editing (shared by Client Experience and Content and Branding) ----------
+  // ---------- Content editing (Landing page) ----------
   const F = {
     text: (p, label, o = {}) => `<label class="${o.wide ? "wide" : ""}">${label}${o.hint ? ` <span class="hint">${o.hint}</span>` : ""}${o.area
       ? `<textarea data-path="${p}" rows="${o.rows || 3}" ${o.dis || ""}>${esc(getPath(S.draft, p) ?? "")}</textarea>`
@@ -517,7 +540,7 @@
       const a = b.dataset.act;
       if (a === "save") { await save(); toast("Draft saved. Nothing is live until you publish."); rerender(); }
       if (a === "preview") { const w = window.open("about:blank", "_blank"); await save(); if (w) w.location = "/?preview=1"; rerender(); }
-      if (a === "publish") { await save(); if (!(await confirmBox("Publish these changes?", "The public page and guest portal will update right away.", "Publish"))) return rerender(); await call("content-publish"); await loadContent(); toast("Published."); rerender(); }
+      if (a === "publish") { await save(); if (!(await confirmBox("Publish these changes?", "The public page will update right away.", "Publish"))) return rerender(); await call("content-publish"); await loadContent(); toast("Published."); rerender(); }
       if (a === "discard") { if (!(await confirmBox("Discard the draft?", "Your unpublished changes will be replaced with what’s live now.", "Discard", true))) return; await call("content-discard"); S.unsaved = false; await loadContent(); rerender(); }
     })));
     v.querySelectorAll("[data-add]").forEach((b) => (b.onclick = () => { sync(v); const list = getPath(S.draft, b.dataset.add) || []; const item = JSON.parse(b.dataset.blank); if ("id" in item) item.id = uid(); list.push(item); setPath(S.draft, b.dataset.add, list); S.unsaved = true; rerender(true); }));
@@ -530,46 +553,27 @@
     }));
   }
 
-  // ---------- Client Experience ----------
-  async function vExperience(v, keep) {
-    if (!keep) await loadContent();
-    const y = window.scrollY;
-    v.innerHTML = head("Client Experience", "Itinerary, guest portal content, packing list, forms and announcements.") + pubbar()
-      + `<div class="panel"><h2>Itinerary</h2><div class="fgrid">${F.text("itinerary.heading", "Heading")}${F.text("itinerary.note", "Note shown above the schedule", { wide: true, area: true, rows: 2 })}
-        ${repeat("itinerary.days", "Days", (p) => `${F.text(`${p}.label`, "Day label", { hint: "e.g. Day 1, or Friday, November 10" })}
-          ${repeat(`${p}.sessions`, "Sessions", (sp) => `${F.text(`${sp}.time`, "Time", { hint: "e.g. 9:00 AM" })}${F.text(`${sp}.title`, "Session")}${F.text(`${sp}.description`, "Description", { wide: true, area: true, rows: 2 })}${F.bool(`${sp}.provisional`, "Provisional (shows a “Provisional” label)")}`, { id: "", time: "", title: "", description: "", provisional: true }, "Add session")}`,
-          { id: "", label: "", sessions: [] }, "Add day")}</div></div>
-      <div class="panel"><h2>Announcements</h2><p class="small muted">Public updates shown to everyone signed in to the portal, including the waiting list.</p><div class="fgrid">
-        ${repeat("portal.announcements", "Announcements", (p) => `${F.text(`${p}.date`, "Date label")}${F.text(`${p}.title`, "Title")}${F.text(`${p}.body`, "Message", { wide: true, area: true })}`, { id: "", date: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }), title: "", body: "" }, "Add announcement")}</div></div>
-      <div class="panel"><h2>Preparation (confirmed guests only)</h2><div class="fgrid">
-        ${F.lines("portal.packingList", "Packing list")}
-        ${F.text("portal.arrivalGuidance", "Arrival guidance", { wide: true, area: true, rows: 4, hint: "The exact address is set in Settings and shown only to confirmed guests" })}
-        ${F.text("portal.preparation", "Preparation materials", { wide: true, area: true, rows: 4 })}</div></div>
-      <div class="panel"><h2>Forms</h2><p class="small muted">Agreement text must come from the attorney. Online completion of forms arrives with reservations.</p><div class="fgrid">
-        ${repeat("portal.forms", "Forms", (p) => `${F.text(`${p}.name`, "Form name")}${F.bool(`${p}.required`, "Required")}${F.text(`${p}.description`, "Description", { wide: true, area: true, rows: 2 })}`, { id: "", name: "", required: false, description: "" }, "Add form")}</div></div>
-      <div class="panel"><h2>Portal text</h2><div class="fgrid">${F.text("portal.welcome", "Welcome line")}${F.text("portal.supportText", "Support message", { wide: true, area: true, rows: 2 })}</div></div>`;
-    wireContent(v, (k) => vExperience(v, k));
-    if (keep) window.scrollTo(0, y);
-  }
-
-  // ---------- Content and Branding ----------
-  async function vContent(v, keep) {
+  // ---------- Landing page: every section, in the same order as the page ----------
+  const PAGE_SECTIONS = ["Logo and header", "Hero and introduction", "What you’ll take home", "The grounds", "The Experience", "Investment", "Your Stay", "Day immersions (wording)", "Itinerary", "Meet Estar", "FAQs", "Testimonials and policies", "Contact", "Secure your spot and Book a call"];
+  async function vPage(v, keep) {
     if (!keep) await loadContent();
     const y = window.scrollY;
     const own = isOwner() ? "" : "disabled";
-    const w = S.draft.waitlist || {};
-    v.innerHTML = head("Content and Branding", "Everything on the public page. Changes stay in draft until you publish.") + pubbar()
-      + `<div class="panel"><h2>Brand</h2><div class="fgrid">${F.text("brand.orgName", "Business name")}${F.text("brand.retreatName", "Retreat name")}${F.text("brand.logoAlt", "Logo description", { hint: "for screen readers" })}
-        ${F.image("brand.logoUrl", "Logo (for light backgrounds)", "Until uploaded, a text wordmark marked as a placeholder is shown")}${F.image("brand.logoDarkUrl", "Logo (for dark backgrounds)", "Used in the footer")}
+    v.innerHTML = head("Landing page", "Every section of the public page, from top to bottom. Changes stay in draft until you publish; Preview shows the page with your draft.") + pubbar()
+      + `<nav class="page-nav" aria-label="Page sections">${PAGE_SECTIONS.map((n, i) => `<button type="button" class="iconbtn" data-jump="pg-${i + 1}">${i + 1}. ${esc(n)}</button>`).join("")}</nav>
+      <div class="panel" id="pg-1"><h2>Logo and header</h2><div class="fgrid">${F.text("brand.orgName", "Business name")}${F.text("brand.retreatName", "Retreat name")}${F.text("brand.logoAlt", "Logo description", { hint: "for screen readers" })}
+        ${F.image("brand.logoUrl", "Logo (for light backgrounds)", "Shown in the header, beside the business name")}${F.image("brand.logoDarkUrl", "Logo (for dark backgrounds)", "Used in the footer")}
         <div class="wide">${F.bool("previewBanner", "Show the “awaiting approval” banner on the public page")}</div></div></div>
-      <div class="panel"><h2>Overview and hero</h2><div class="fgrid">${F.text("hero.kicker", "Small line above the title")}${F.text("hero.title", "Hero title", { wide: true })}${F.text("hero.sub", "Supporting line", { wide: true })}
+      <div class="panel" id="pg-2"><h2>Hero and introduction</h2><div class="fgrid">${F.text("hero.kicker", "Small line above the title")}${F.text("hero.title", "Hero title", { wide: true })}${F.text("hero.sub", "Supporting line", { wide: true })}
         ${F.text("hero.primaryLabel", "Main button")}${F.text("hero.secondaryLabel", "Second button")}
         ${F.image("hero.imageUrl", "Hero photo", "Approved retreat imagery, landscape")}${F.text("hero.imageAlt", "Hero photo description", { wide: true, hint: "for screen readers" })}${F.text("hero.videoUrl", "Hero video (optional)", { wide: true, hint: "/media/pond.mp4 or an https link to an approved .mp4. Visitors who prefer reduced motion see the hero photo instead, and everyone gets a pause button" })}${F.image("hero.videoPosterUrl", "Video still", "Shown for a moment while the video loads; use the video\u2019s first frame")}
         ${F.text("overview.heading", "Overview heading")}${F.text("overview.signoff", "Sign-off")}${F.text("overview.body", "Overview letter", { wide: true, area: true, rows: 6, hint: "Use “Eye” in Estar’s voice. Blank line = new paragraph" })}</div>
         <p class="small muted">Dates and location are set in Settings and appear only once marked confirmed.</p></div>
-      <div class="panel"><h2>The grounds</h2><p class="small muted">The first six photos make the gallery mosaic; all of them open in the photo viewer. Use only photos approved for this retreat.</p><div class="fgrid">${F.text("grounds.heading", "Heading")}${F.text("grounds.intro", "Introduction", { wide: true, area: true })}
+      <div class="panel" id="pg-3"><h2>What you’ll take home</h2><p class="small muted">Shown under the overview once it has at least one item.</p><div class="fgrid">${F.text("transformation.heading", "Heading")}${F.text("transformation.intro", "Introduction", { wide: true, area: true })}
+        ${repeat("transformation.items", "Items", (p) => `${F.text(`${p}.title`, "Title")}${F.text(`${p}.text`, "Text", { wide: true, area: true, rows: 2 })}`, { id: "", title: "", text: "" }, "Add item")}</div></div>
+      <div class="panel" id="pg-4"><h2>The grounds</h2><p class="small muted">The first six photos make the gallery mosaic; all of them open in the photo viewer. Use only photos approved for this retreat.</p><div class="fgrid">${F.text("grounds.heading", "Heading")}${F.text("grounds.intro", "Introduction", { wide: true, area: true })}
         ${repeat("grounds.photos", "Photos", (p) => `${F.image(`${p}.url`, "Photo")}${F.text(`${p}.caption`, "Caption")}${F.text(`${p}.alt`, "Description for screen readers", { wide: true })}`, { id: "", url: "", caption: "", alt: "" }, "Add photo")}</div></div>
-      <div class="panel"><h2>The Experience</h2><div class="fgrid">${F.text("experience.heading", "Heading")}${F.text("experience.welcomes", "Who the retreat welcomes", { wide: true, area: true })}${F.text("experience.participation", "Participation note", { wide: true, area: true, hint: "Keep: participation and touch are always optional" })}
+      <div class="panel" id="pg-5"><h2>The Experience</h2><div class="fgrid">${F.text("experience.heading", "Heading")}${F.text("experience.welcomes", "Who the retreat welcomes", { wide: true, area: true })}${F.text("experience.participation", "Participation note", { wide: true, area: true, hint: "Keep: participation and touch are always optional" })}
         ${F.lines("experience.inclusions", "Included")}${F.lines("experience.exclusions", "Not included")}${F.text("experience.pendingNote", "Shown while no sessions are published", { wide: true })}
         ${F.text("experience.rhythm", "Pace of the days", { wide: true, area: true, hint: "Shown under the sessions. Leave blank to hide" })}
         ${repeat("experience.photos", "Photos", (p) => `${F.image(`${p}.url`, "Photo")}${F.text(`${p}.caption`, "Caption")}${F.text(`${p}.alt`, "Description for screen readers", { wide: true })}`, { id: "", url: "", caption: "", alt: "" }, "Add photo")}
@@ -577,82 +581,37 @@
         ${repeat("experience.activities", "Sessions and rituals", (p, a) => `${F.text(`${p}.title`, "Title")}${F.text(`${p}.note`, "Note")}${F.text(`${p}.description`, "Description", { wide: true, area: true, rows: 2 })}
           ${a.reviewRequired ? `<div class="wide warn">Held back pending a separate safety and suitability review. It can’t be published until the owner records that the review is complete.</div>${F.bool(`${p}.reviewDone`, `Safety and suitability review completed${isOwner() ? "" : " (owner only)"}`, { dis: own })}` : ""}
           ${F.bool(`${p}.published`, "Publish (owner-approved, facilitators and delivery confirmed)")}`, { id: "", title: "", description: "", note: "", published: false }, "Add session")}</div></div>
-      <div class="panel"><h2>What you’ll take home</h2><p class="small muted">Shown under the overview once it has at least one item.</p><div class="fgrid">${F.text("transformation.heading", "Heading")}${F.text("transformation.intro", "Introduction", { wide: true, area: true })}
-        ${repeat("transformation.items", "Items", (p) => `${F.text(`${p}.title`, "Title")}${F.text(`${p}.text`, "Text", { wide: true, area: true, rows: 2 })}`, { id: "", title: "", text: "" }, "Add item")}</div></div>
-      <div class="panel"><h2>Investment summary</h2><p class="small muted">A short list of every room and immersion with its price, shown before Your Stay once it has a heading. Prices come from Rooms and Inventory and from Settings.</p><div class="fgrid">${F.text("investments.heading", "Heading", { hint: "Leave blank to hide the section" })}${F.text("investments.intro", "What every room includes", { wide: true, area: true })}${F.text("investments.paymentNote", "Deposit and payment plan", { wide: true, area: true })}</div></div>
-      <div class="panel"><h2>Day immersions</h2><p class="small muted">The wording around the immersions. Their names and prices are set in Settings and Audit.</p><div class="fgrid">${F.text("immersions.heading", "Heading")}${F.text("immersions.earlyBirdLabel", "Early-bird label")}${F.text("immersions.intro", "Introduction", { wide: true, area: true, rows: 2 })}${F.text("immersions.includes", "What’s included", { wide: true, area: true, rows: 2 })}${F.text("immersions.note", "Note", { wide: true })}${F.text("immersions.earlyBirdNote", "Early-bird note", { wide: true, area: true, rows: 2, hint: "Shown when an immersion has an early-bird price" })}</div></div>
-      <div class="panel"><h2>Your Stay</h2><div class="fgrid">${F.text("stay.heading", "Heading")}${F.text("stay.intro", "Introduction", { wide: true, area: true })}${F.text("stay.sharedNote", "Shared room note", { wide: true, area: true })}</div><p class="small muted">Room details, prices and photos are edited in Rooms and Inventory.</p></div>
-      <div class="panel"><h2>Meet Estar</h2><div class="fgrid">${F.text("host.heading", "Heading")}${F.text("host.name", "Name")}${F.text("host.title", "Title")}${F.image("host.photoUrl", "Photo")}${F.text("host.bio", "Approved biography", { wide: true, area: true, rows: 7 })}</div></div>
-      <div class="panel"><h2>FAQs</h2><div class="fgrid">${repeat("faqs", "Questions", (p) => `${F.text(`${p}.q`, "Question", { wide: true })}${F.text(`${p}.a`, "Answer", { wide: true, area: true })}`, { id: "", q: "", a: "" }, "Add question")}</div></div>
-      <div class="panel"><h2>Testimonials and policies</h2><div class="fgrid">${F.text("trust.heading", "Heading")}
+      <div class="panel" id="pg-6"><h2>Investment</h2><p class="small muted">A short list of every room and immersion with its price, shown before Your Stay once it has a heading. Prices come from Tickets.</p><div class="fgrid">${F.text("investments.heading", "Heading", { hint: "Leave blank to hide the section" })}${F.text("investments.intro", "What every room includes", { wide: true, area: true })}${F.text("investments.paymentNote", "Deposit and payment plan", { wide: true, area: true })}</div></div>
+      <div class="panel" id="pg-7"><h2>Your Stay</h2><div class="fgrid">${F.text("stay.heading", "Heading")}${F.text("stay.intro", "Introduction", { wide: true, area: true })}${F.text("stay.sharedNote", "Shared room note", { wide: true, area: true })}</div><p class="small muted">Room details, prices and photos are edited in Tickets.</p></div>
+      <div class="panel" id="pg-8"><h2>Day immersions (wording)</h2><p class="small muted">The wording around the immersions. Their names, prices and ticket limits are set in Tickets.</p><div class="fgrid">${F.text("immersions.heading", "Heading")}${F.text("immersions.earlyBirdLabel", "Early-bird label")}${F.text("immersions.intro", "Introduction", { wide: true, area: true, rows: 2 })}${F.text("immersions.includes", "What’s included", { wide: true, area: true, rows: 2 })}${F.text("immersions.note", "Note", { wide: true })}${F.text("immersions.earlyBirdNote", "Early-bird note", { wide: true, area: true, rows: 2, hint: "Shown when an immersion has an early-bird price" })}</div></div>
+      <div class="panel" id="pg-9"><h2>Itinerary</h2><div class="fgrid">${F.text("itinerary.heading", "Heading")}${F.text("itinerary.note", "Note shown above the schedule", { wide: true, area: true, rows: 2 })}
+        ${repeat("itinerary.days", "Days", (p) => `${F.text(`${p}.label`, "Day label", { hint: "e.g. Day 1, or Friday, November 10" })}
+          ${repeat(`${p}.sessions`, "Sessions", (sp) => `${F.text(`${sp}.time`, "Time", { hint: "e.g. 9:00 AM" })}${F.text(`${sp}.title`, "Session")}${F.text(`${sp}.description`, "Description", { wide: true, area: true, rows: 2 })}${F.bool(`${sp}.provisional`, "Provisional (shows a “Provisional” label)")}`, { id: "", time: "", title: "", description: "", provisional: true }, "Add session")}`,
+          { id: "", label: "", sessions: [] }, "Add day")}</div></div>
+      <div class="panel" id="pg-10"><h2>Meet Estar</h2><div class="fgrid">${F.text("host.heading", "Heading")}${F.text("host.name", "Name")}${F.text("host.title", "Title")}${F.image("host.photoUrl", "Photo")}${F.text("host.bio", "Approved biography", { wide: true, area: true, rows: 7 })}</div></div>
+      <div class="panel" id="pg-11"><h2>FAQs</h2><div class="fgrid">${repeat("faqs", "Questions", (p) => `${F.text(`${p}.q`, "Question", { wide: true })}${F.text(`${p}.a`, "Answer", { wide: true, area: true })}`, { id: "", q: "", a: "" }, "Add question")}</div></div>
+      <div class="panel" id="pg-12"><h2>Testimonials and policies</h2><div class="fgrid">${F.text("trust.heading", "Heading")}
         ${repeat("trust.testimonials", "Testimonials", (p) => `${F.text(`${p}.quote`, "Quote (exactly as approved)", { wide: true, area: true })}${F.text(`${p}.name`, "Name as she approved it")}${F.bool(`${p}.permission`, "We have her written permission")}${F.bool(`${p}.published`, "Publish (requires permission)")}`, { id: "", quote: "", name: "", permission: false, published: false }, "Add testimonial")}
         ${F.text("trust.policiesText", "Policies (privacy, refunds, conduct)", { wide: true, area: true, rows: 5, hint: "Text from the attorney" })}</div></div>
-      <div class="panel"><h2>Contact</h2><div class="fgrid">${F.text("contact.email", "Support email", { type: "email" })}${F.text("contact.phone", "Phone")}${F.text("contact.responseTime", "Response expectation", { hint: "e.g. We reply within 2 business days." })}
+      <div class="panel" id="pg-13"><h2>Contact</h2><div class="fgrid">${F.text("contact.email", "Support email", { type: "email" })}${F.text("contact.phone", "Phone")}${F.text("contact.responseTime", "Response expectation", { hint: "e.g. We reply within 2 business days." })}
         <div class="wide">${F.bool("contact.verified", `These contact details are verified and can be shown${isOwner() ? "" : " (owner only)"}`, { dis: own })}</div></div></div>
-      <div class="panel"><h2>Secure your spot and Book a call</h2><p class="small muted">The section where guests choose a room or immersion and pay. Prices come from Rooms and Inventory and Settings; the payment links are set by the owner in Bookings and Payments.</p><div class="fgrid">
+      <div class="panel" id="pg-14"><h2>Secure your spot and Book a call</h2><p class="small muted">The section where guests choose a room or immersion and pay. Prices come from Tickets; where the button sends guests is set in Payments.</p><div class="fgrid">
         ${F.text("reserve.heading", "Heading")}${F.text("reserve.payLabel", "Payment button")}${F.text("reserve.intro", "Introduction", { wide: true, area: true, rows: 2 })}
         ${F.text("reserve.depositLabel", "Deposit option")}${F.text("reserve.fullLabel", "Pay in full option")}
         ${F.text("reserve.closedLabel", "Button while payments are closed")}${F.text("reserve.closedNote", "Note while payments are closed", { wide: true, area: true, rows: 2 })}
         <div class="wide"><h3>Book a call</h3></div>${F.text("reserve.callHeading", "Heading")}${F.text("reserve.callLabel", "Button")}${F.text("reserve.callText", "Text", { wide: true, area: true, rows: 2 })}
-        ${F.text("reserve.callUrl", "Booking link", { wide: true, hint: "Your scheduling page, starting with https://. Leave blank to hide" })}</div></div>
-      <div class="panel"><h2>Waiting list (guest portal)</h2><div class="fgrid">${F.text("waitlist.heading", "Heading")}${F.text("waitlist.intro", "Introduction", { wide: true, area: true })}
-        ${F.text("waitlist.privacyNotice", "Privacy notice", { wide: true, area: true })}${F.text("waitlist.consentText", "Marketing consent wording (checkbox starts unchecked)", { wide: true, area: true })}
-        ${F.text("waitlist.successMessage", "Success message", { wide: true, area: true })}</div>
-        <p class="small muted">Consent version: ${esc(w.consentVersion || "")} · Privacy version: ${esc(w.privacyVersion || "")}. Changing either wording creates a new version when published, so each sign-up records exactly what she agreed to.</p></div>`;
-    wireContent(v, (k) => vContent(v, k));
+        ${F.text("reserve.callUrl", "Booking link", { wide: true, hint: "Your scheduling page, starting with https://. Leave blank to hide" })}</div></div>`;
+    wireContent(v, (k) => vPage(v, k));
+    v.querySelectorAll("[data-jump]").forEach((b) => (b.onclick = () => document.getElementById(b.dataset.jump).scrollIntoView({ block: "start" })));
     if (keep) window.scrollTo(0, y);
   }
 
-  // ---------- Communications ----------
-  S.mailStatus = "";
-  async function vComms(v) {
-    const [tl, el] = await Promise.all([call("templates-list"), call("emails-list", { status: S.mailStatus })]);
-    const failed = el.rows.filter((r) => r.status === "failed").length;
-    v.innerHTML = head("Communications", "Email templates and delivery history.")
-      + `<div class="panel"><h2>Templates</h2><p class="small muted">Use {{name}}, {{portal_url}} and the other placeholders shown in each draft. Editing a campaign email turns it off until the owner approves it again. Marketing emails include an unsubscribe link and go only to people who opted in.</p>
-        <div class="table-wrap"><table><thead><tr><th>Email</th><th>Type</th><th>Status</th><th>Last edited</th><th></th></tr></thead><tbody>
-        ${tl.rows.map((t) => `<tr><td><span class="name">${esc(t.name)}</span><small>${esc(t.subject)}</small></td><td>${t.category === "campaign" ? "Marketing" : "Operational"}</td>
-          <td>${t.enabled ? tag("On", "ok") : tag("Off (draft)", "warn")}${t.approved_at ? `<small>Approved ${fmtDate(t.approved_at)} by ${esc(t.approved_by || "")}</small>` : ""}</td>
-          <td>${fmtDate(t.updated_at)}<small>${esc(t.updated_by || "")}</small></td><td><button class="iconbtn" data-tpl="${esc(t.key)}">Edit</button></td></tr>`).join("")}</tbody></table></div><div id="tpl-edit"></div></div>
-      <div class="panel"><div class="head" style="margin-bottom:12px"><div><h2 style="margin:0">Delivery history</h2><p class="small">Failed emails retry automatically with increasing waits. You can also retry now.</p></div>
-        <div class="row"><select id="mail-status" aria-label="Filter by status"><option value="">All</option><option value="queued">Queued</option><option value="sent">Sent</option><option value="failed">Failed</option><option value="canceled">Canceled</option></select>${failed ? '<button class="btn btn-outline" id="retry-all">Retry all failed</button>' : ""}</div></div>
-        <div class="table-wrap">${el.rows.length ? `<table><thead><tr><th>Created</th><th>To</th><th>Email</th><th>Status</th><th>Attempts</th><th></th></tr></thead><tbody>
-        ${el.rows.map((r) => `<tr><td>${fmtDateTime(r.created_at)}</td><td>${esc(r.to_email)}</td><td>${esc(r.subject)}<small>${esc(r.template_key || "")}</small></td>
-          <td>${r.status === "sent" ? tag("Sent", "ok") : r.status === "failed" ? tag(r.attempts >= el.maxAttempts ? "Failed (stopped)" : "Failed, will retry", "bad") : tag(r.status)}${r.last_error ? `<small>${esc(r.last_error)}</small>` : ""}${r.status === "failed" && r.attempts < el.maxAttempts ? `<small>Next try ${fmtDateTime(r.next_attempt_at)}</small>` : ""}</td>
-          <td>${r.attempts}</td><td>${["failed", "queued"].includes(r.status) ? `<div class="row">${r.template_key !== "signin_code" ? `<button class="iconbtn" data-retry="${esc(r.id)}">Retry now</button>` : ""}<button class="iconbtn" data-cancel="${esc(r.id)}">Cancel</button></div>` : ""}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">No emails yet.</div>'}</div></div>`;
-    const ms = document.getElementById("mail-status"); ms.value = S.mailStatus; ms.onchange = () => { S.mailStatus = ms.value; vComms(v); };
-    const ra = document.getElementById("retry-all"); if (ra) ra.onclick = () => busy(ra, async () => { const r = await call("email-retry", {}); toast(`${r.sent} of ${r.tried} sent.`); vComms(v); });
-    v.querySelectorAll("[data-retry]").forEach((b) => (b.onclick = () => busy(b, async () => { const r = await call("email-retry", { id: b.dataset.retry }); toast(r.sent ? "Sent." : "Still failing. See the error for details.", !r.sent); vComms(v); })));
-    v.querySelectorAll("[data-cancel]").forEach((b) => (b.onclick = () => busy(b, async () => { await call("email-cancel", { id: b.dataset.cancel }); vComms(v); })));
-    v.querySelectorAll("[data-tpl]").forEach((b) => (b.onclick = () => editTemplate(v, tl.rows.find((t) => t.key === b.dataset.tpl))));
-  }
-  function editTemplate(v, t) {
-    const box = document.getElementById("tpl-edit");
-    const locked = ["signin_code", "staff_invite"].includes(t.key);
-    box.innerHTML = `<div class="panel" style="margin-top:16px;border-top:4px solid var(--olive)"><h3>${esc(t.name)}</h3><form class="form" id="tpl-form" novalidate>
-      <label>Subject<input type="text" name="subject" maxlength="200" value="${esc(t.subject)}"></label>
-      <label>Email text <span class="hint">Blank line = new paragraph</span><textarea name="body" rows="9" maxlength="10000">${esc(t.body)}</textarea></label>
-      <div class="row"><button class="btn btn-primary" type="submit">Save</button><button class="btn btn-outline" type="button" id="tpl-prev">Preview</button>
-        ${isOwner() ? (t.enabled ? (locked ? '<span class="small muted">Required for sign-in; always on.</span>' : '<button class="btn btn-danger" type="button" id="tpl-off">Turn off</button>') : '<button class="btn btn-outline" type="button" id="tpl-on">Approve and turn on</button>') : '<span class="small muted">The owner approves and turns emails on.</span>'}
-        <button class="iconbtn" type="button" id="tpl-close">Close</button></div>
-      <iframe class="mailprev" id="tpl-frame" title="Email preview" hidden sandbox></iframe></form></div>`;
-    const f = document.getElementById("tpl-form");
-    f.addEventListener("input", () => (S.unsaved = true));
-    f.onsubmit = (ev) => { ev.preventDefault(); busy(f.querySelector("button[type=submit]"), async () => { await call("template-save", { key: t.key, subject: f.subject.value, body: f.body.value }); S.unsaved = false; toast("Template saved."); vComms(v); }); };
-    document.getElementById("tpl-prev").onclick = (e) => busy(e.target, async () => { const r = await call("template-preview", { key: t.key, subject: f.subject.value, body: f.body.value }); const fr = document.getElementById("tpl-frame"); fr.hidden = false; fr.srcdoc = `<p style="font-family:Arial;padding:0 16px"><strong>Subject:</strong> ${esc(r.subject)}</p>${r.html}`; });
-    document.getElementById("tpl-close").onclick = () => { S.unsaved = false; box.innerHTML = ""; };
-    const on = document.getElementById("tpl-on"), off = document.getElementById("tpl-off");
-    if (on) on.onclick = () => busy(on, async () => { if (S.unsaved) return toast("Save your changes first.", true); await call("template-approve", { key: t.key, enabled: true }); toast("Approved and turned on."); vComms(v); });
-    if (off) off.onclick = () => busy(off, async () => { await call("template-approve", { key: t.key, enabled: false }); toast("Turned off."); vComms(v); });
-    box.scrollIntoView({ block: "start" });
-  }
-
-  // ---------- Settings and Audit ----------
+  // ---------- Settings ----------
   async function vSettings(v) {
     const [rg, sl, ig, al] = await Promise.all([call("retreat-get"), call("staff-list"), call("integrations"), call("audit-list", {})]);
     const r = rg.retreat, own = isOwner() ? "" : "disabled";
     S.audit = al.rows;
-    v.innerHTML = head("Settings and Audit", `Environment: ${esc(ig.environment)}`)
+    v.innerHTML = head("Settings", `Environment: ${esc(ig.environment)}`)
       + `<div class="panel"><h2>Retreat details${ownerNote()}</h2><p class="small muted">Dates and location appear on the public page only once marked confirmed.</p>
         <form class="form" id="ret-form" novalidate><div class="fgrid">
           <label>Retreat name<input type="text" name="name" value="${esc(r.name)}" ${own}></label>
@@ -665,9 +624,7 @@
           <label>City and state<input type="text" name="venue_city" value="${esc(r.venue_city || "")}" ${own}></label>
           <div style="align-self:end"><label class="check"><input type="checkbox" name="venue_confirmed" ${r.venue_confirmed ? "checked" : ""} ${own}> Venue confirmed</label></div>
           <label class="wide">Exact address and arrival details <span class="hint">(confirmed guests only)</span><textarea name="private_address" ${own}>${esc(r.private_address || "")}</textarea></label>
-          <div class="wide"><h3>Day immersions</h3><p class="small muted">For guests who join without staying overnight. Leave the early-bird price blank to offer only the standard price. The wording around them is edited in Content and Branding.</p>
-            <label class="check"><input type="checkbox" name="day_pass_enabled" ${r.day_pass_enabled ? "checked" : ""} ${own}> Offer day immersions</label>
-            <div id="imm"></div>${isOwner() ? '<button type="button" class="iconbtn" id="imm-add">Add immersion</button>' : ""}</div>
+
         </div>${isOwner() ? '<div><button class="btn btn-primary" type="submit">Save retreat details</button></div>' : ""}</form></div>
       <div class="panel"><h2>Staff access</h2><div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Two-step sign-in</th><th>Last sign-in</th><th></th></tr></thead><tbody>
         ${sl.rows.map((a) => `<tr><td><span class="name">${esc(a.name)}</span><small>${esc(a.email)}</small>${a.active ? "" : tag("Deactivated", "bad")}${a.invite_expires ? `<small>Invitation pending until ${fmtDateTime(a.invite_expires)}</small>` : ""}</td>
@@ -684,19 +641,13 @@
         <button class="iconbtn" id="audit-more" style="margin-top:10px">Load older</button></div>`;
     renderAudit();
     const ua = document.getElementById("use-app"); if (ua) ua.onclick = () => enrollScreen();
-    S.imm = (r.immersions || []).map((x) => ({ ...x }));
-    renderImm();
-    const ia = document.getElementById("imm-add");
-    if (ia) ia.onclick = () => { S.imm.push({ id: "", name: "", days: 1, price_cents: null, early_bird_price_cents: null }); renderImm(); };
     const rf = document.getElementById("ret-form");
     rf.addEventListener("input", () => (S.unsaved = true));
     rf.onsubmit = (ev) => {
       ev.preventDefault();
       const fd = new FormData(rf);
-      if (S.imm.some((i) => Number.isNaN(i.price_cents) || Number.isNaN(i.early_bird_price_cents))) return toast("Enter valid immersion prices.", true);
-      const body = Object.fromEntries([...fd].filter(([k]) => !k.startsWith("imm_")));
-      ["dates_confirmed", "venue_confirmed", "day_pass_enabled"].forEach((k) => (body[k] = rf[k].checked));
-      body.immersions = S.imm.map((i) => ({ ...i }));
+      const body = Object.fromEntries(fd);
+      ["dates_confirmed", "venue_confirmed"].forEach((k) => (body[k] = rf[k].checked));
       busy(rf.querySelector("button[type=submit]"), async () => { await call("retreat-save", body); S.unsaved = false; toast("Retreat details saved."); vSettings(v); });
     };
     v.querySelectorAll("[data-role]").forEach((s) => (s.onchange = () => busy(null, async () => { const a = sl.rows.find((x) => x.id === s.dataset.role); await call("staff-update", { id: a.id, role: s.value, active: a.active }); toast("Role updated."); vSettings(v); })));
@@ -712,6 +663,6 @@
       <td>${a.before || a.after ? `<small>Before: ${fmt(a.before)}</small><small>After: ${fmt(a.after)}</small>` : ""}</td></tr>`).join("") || '<tr><td colspan="4" class="empty">No changes yet.</td></tr>';
   }
 
-  const VIEWS = { overview: vOverview, waitlist: vWaitlist, clients: vClients, rooms: vRooms, bookings: vBookings, experience: (v) => vExperience(v), content: (v) => vContent(v), comms: vComms, settings: vSettings };
+  const VIEWS = { overview: vOverview, page: (v) => vPage(v), tickets: vTickets, payments: vPayments, settings: vSettings };
   boot();
 })();
