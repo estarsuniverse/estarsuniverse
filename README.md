@@ -36,7 +36,7 @@ Paid reservations are built in Phase 2. They can only open after the launch chec
 - **Money** is stored as whole cents in USD. Each retreat has an explicit timezone. Every room, inventory unit and booking belongs to a retreat, so later seasonal events stay separate.
 - **Security**
   - Guests sign in with a one-time code sent to their email. A name and email alone never unlock anything.
-  - Admins sign in with an email and password. The owner's are `ADMIN_EMAIL` and `ADMIN_PASSWORD` in Vercel (the owner account is created on first sign-in, and those details always work for it). Staff are invited and choose their own password. Any admin can add an authenticator app as a second step, which is recommended before launch: with a password alone, anyone who learns it can sign in.
+  - **Admin sign-in is currently off** (the owner's choice): anyone who opens `/admin/` can use the admin area as the owner, including guest details, prices and payment links. To require sign-in, add `ADMIN_REQUIRE_SIGNIN` = `true` in Vercel and redeploy. With it on, admins sign in with an email and password. The owner's are `ADMIN_EMAIL` and `ADMIN_PASSWORD` in Vercel (the owner account is created on first sign-in, and those details always work for it). Staff are invited and choose their own password. Any admin can add an authenticator app as a second step, which is recommended before launch: with a password alone, anyone who learns it can sign in.
   - Every API action checks the session (and the authenticator step for admins who use one) and the role on the server.
   - Payment links (where **Secure your spot** goes) can only be changed by the owner, like prices.
   - Portal data is always looked up from the signed-in guest's own account, never from an ID the browser sends.
@@ -84,7 +84,7 @@ All accounts should be **owned by Empowered Wombman**, with collaborators added 
    - `EMAIL_FROM`
    - `CRON_SECRET`
    - `SITE_URL`
-7. **Deploy.** Then open `/admin/` and sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD`. To change the owner password, change `ADMIN_PASSWORD` in Vercel and redeploy. `SETUP_TOKEN` is no longer used and can be deleted.
+7. **Deploy.** Then open `/admin/`. Sign-in is off by default; with `ADMIN_REQUIRE_SIGNIN` set to `true`, sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD`. To change the owner password, change `ADMIN_PASSWORD` in Vercel and redeploy. `SETUP_TOKEN` is no longer used and can be deleted.
 8. **Invite staff.** The owner invites staff from **Settings and Audit**. Each person sets their own password. Deactivate them there when they leave the team.
 9. **Check that everything is connected.** Open `/api/site?fn=health` on the live site. It lists each setting as present or missing, with how to fix it, and never shows the values. After you sign in, the **Integrations** list in Settings and Audit shows the same.
 
@@ -110,7 +110,7 @@ Neon keeps point-in-time history of the database, and you can restore to an earl
 ```bash
 npm install
 npm run dev          # http://localhost:3000 (in-memory Postgres, fake email)
-npm test             # 49 end-to-end acceptance checks
+npm test             # 50 end-to-end acceptance checks
 ```
 
 Local testing works like this:

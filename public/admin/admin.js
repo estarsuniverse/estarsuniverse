@@ -4,6 +4,7 @@
   const { esc, money, fmtDate, fmtDateTime } = EG;
   const app = document.getElementById("app");
   let ME = null;
+  let OPEN = false;   // sign-in is turned off (ADMIN_REQUIRE_SIGNIN not set)
   let TAB = "overview";
   const S = { unsaved: false };
   const isOwner = () => ME && ME.role === "owner";
@@ -84,6 +85,7 @@
     let st;
     try { st = await call("status"); } catch (e) { return authCard(`<h1>Admin</h1><p class="form-error">${esc(e.message)}</p>`); }
     ME = st.admin || null;
+    OPEN = Boolean(st.open);
     if (st.state === "signed_out") return loginScreen(st.ownerSet);
     if (st.state === "mfa_verify") return verifyScreen();
     shell();
@@ -160,6 +162,7 @@
     const so = async () => { await call("logout").catch(() => {}); ME = null; boot(); };
     document.getElementById("signout").onclick = so;
     document.getElementById("mobile-signout").onclick = so;
+    if (OPEN) ["signout", "mobile-signout"].forEach((id) => (document.getElementById(id).hidden = true));
     const want = location.hash.slice(1);
     go(TABS.some((t) => t[0] === want) ? want : "overview", true);
   }
@@ -674,8 +677,8 @@
         </tbody></table></div>
         ${isOwner() ? `<form class="form" id="inv-form" style="margin-top:14px" novalidate><h3>Invite someone</h3><div class="fgrid"><label>Name<input type="text" name="name" required></label><label>Email<input type="email" name="email" required></label><label>Role<select name="role"><option value="staff">Staff</option><option value="owner">Owner</option></select></label><div style="align-self:end"><button class="btn btn-primary" type="submit">Send invitation</button></div></div><p class="small muted" id="inv-link"></p></form>` : ""}
         <p class="small muted">Owners can change roles, payment settings, prices and sensitive configuration. Staff can manage the waiting list, clients, room descriptions and photos, content and email drafts.</p></div>
-      <div class="panel"><h2>Your sign-in</h2><p class="small muted">You sign in with your email and password${ME.authenticator ? ", then a code from your authenticator app" : ""}. The owner can always sign in with ADMIN_EMAIL and ADMIN_PASSWORD from Vercel; change ADMIN_PASSWORD there to change it.</p>
-        ${ME.authenticator ? "" : '<button class="btn btn-outline" id="use-app">Optional: add an authenticator app</button>'}</div>
+      ${OPEN ? '<div class="panel"><h2>Admin sign-in is off</h2><p class="small muted">Anyone who opens /admin/ can use the admin area as the owner, including guest details, prices and payment links. To require sign-in again, add ADMIN_REQUIRE_SIGNIN with the value true in Vercel (Settings, Environment Variables) and redeploy; you then sign in with ADMIN_EMAIL and ADMIN_PASSWORD.</p></div>' : `<div class="panel"><h2>Your sign-in</h2><p class="small muted">You sign in with your email and password${ME.authenticator ? ", then a code from your authenticator app" : ""}. The owner can always sign in with ADMIN_EMAIL and ADMIN_PASSWORD from Vercel; change ADMIN_PASSWORD there to change it.</p>
+        ${ME.authenticator ? "" : '<button class="btn btn-outline" id="use-app">Optional: add an authenticator app</button>'}</div>`}
       <div class="panel"><h2>Integrations</h2><ul class="checklist">${ig.items.map((i) => `<li><span class="${i.ok ? "ok" : "no"}">${i.ok ? "✓" : "✕"}</span><span>${esc(i.name)}<br><small class="muted">${esc(i.detail)}</small></span></li>`).join("")}</ul></div>
       <div class="panel"><h2>Change history</h2><div class="table-wrap"><table><thead><tr><th>When</th><th>Who</th><th>What</th><th>Details</th></tr></thead><tbody id="audit-rows"></tbody></table></div>
         <button class="iconbtn" id="audit-more" style="margin-top:10px">Load older</button></div>`;

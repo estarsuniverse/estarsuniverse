@@ -1,6 +1,6 @@
 # Admin guide
 
-Sign in at **/admin/** with your email and password. The owner uses the `ADMIN_EMAIL` and `ADMIN_PASSWORD` set in Vercel; staff use the password they chose from their invitation. If you've added an authenticator app in Settings and Audit, enter its code after your password. You'll be signed out after 2 hours without activity.
+Open **/admin/**. Sign-in is currently turned off, so you go straight in as the owner (and so can anyone with the link). To require sign-in, add `ADMIN_REQUIRE_SIGNIN` with the value `true` in Vercel and redeploy; then sign in with your email and password. The owner uses the `ADMIN_EMAIL` and `ADMIN_PASSWORD` set in Vercel; staff use the password they chose from their invitation. If you've added an authenticator app in Settings and Audit, enter its code after your password. You'll be signed out after 2 hours without activity.
 
 **Owners** can do everything.
 

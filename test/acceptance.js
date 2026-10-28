@@ -60,7 +60,7 @@ async function signInGuest(c, email) {
 
 (async () => {
   const srv = spawn(process.execPath, [path.join(__dirname, "..", "tools", "devserver.js")], {
-    env: { ...process.env, PORT: String(PORT), DATABASE_URL: "pglite:memory", DEV_UPLOAD_DIR: "/tmp/eg-test-uploads" }, stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, PORT: String(PORT), DATABASE_URL: "pglite:memory", DEV_UPLOAD_DIR: "/tmp/eg-test-uploads", ADMIN_REQUIRE_SIGNIN: "true" }, stdio: ["ignore", "pipe", "pipe"],
   });
   let log = ""; srv.stdout.on("data", (d) => (log += d)); srv.stderr.on("data", (d) => (log += d));
   for (let i = 0; i < 60 && !log.includes("Dev server"); i++) await sleep(100);
@@ -463,6 +463,24 @@ async function signInGuest(c, email) {
   });
 
   srv.kill();
+
+  // ---------- Sign-in turned off (the default without ADMIN_REQUIRE_SIGNIN) ----------
+  await check("With sign-in off, opening the admin goes straight in as the owner, and a warning shows in Integrations", async () => {
+    const env = { ...process.env, PORT: String(PORT + 1), DATABASE_URL: "pglite:memory", DEV_UPLOAD_DIR: "/tmp/eg-test-uploads" };
+    delete env.ADMIN_REQUIRE_SIGNIN;
+    const open = spawn(process.execPath, [path.join(__dirname, "..", "tools", "devserver.js")], { env, stdio: ["ignore", "pipe", "pipe"] });
+    let olog = ""; open.stdout.on("data", (d) => (olog += d));
+    try {
+      for (let i = 0; i < 80 && !olog.includes("Dev server"); i++) await sleep(100);
+      const c = new Client("10.2.0.1");
+      const req = (action) => fetch(`http://localhost:${PORT + 1}/api/admin`, { method: "POST", headers: { Origin: `http://localhost:${PORT + 1}`, "Content-Type": "application/json", "X-Requested-With": "fetch", "X-Forwarded-For": c.ip }, body: JSON.stringify({ action }) }).then((r) => r.json().then((data) => ({ status: r.status, data })));
+      const st = await req("status");
+      assert.equal(st.data.state, "ready"); assert.equal(st.data.open, true); assert.equal(st.data.admin.role, "owner");
+      assert.equal((await req("overview")).status, 200);
+      const ig = (await req("integrations")).data.items.find((i) => i.name === "Admin sign-in");
+      assert.ok(ig && !ig.ok && /anyone with the \/admin\/ link/.test(ig.detail));
+    } finally { open.kill(); }
+  });
   console.log(results.join("\n"));
   console.log(`\n${passed} of ${results.length} checks passed.`);
   if (process.exitCode) console.log("\nServer log:\n" + log.slice(-3000));
