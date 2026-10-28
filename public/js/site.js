@@ -143,6 +143,9 @@
     $("host-photo").innerHTML = ho.photoUrl ? `<img src="${esc(ho.photoUrl)}" alt="${esc(ho.name)}">` : "<span>Approved photo of Estar<br>coming soon</span>";
 
     // FAQs, trust, contact
+    const fp = s.faqPage || {};
+    $("faq-heading").innerHTML = mark(fp.heading || "Frequently Asked Questions");
+    $("faq-intro").innerHTML = mark(fp.intro); $("faq-intro").hidden = !fp.intro;
     $("faq-list").innerHTML = (s.faqs || []).map((f) => `<details><summary>${mark(f.q)}</summary><div class="answer">${paras(f.a)}</div></details>`).join("");
     const tr = s.trust || {};
     const quotes = tr.testimonials || [];

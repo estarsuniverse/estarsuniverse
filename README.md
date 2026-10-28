@@ -156,7 +156,7 @@ All of these can be edited in the admin area. Text in `[square brackets]` is hig
 - ~~**Experience.**~~ **Done:** Estar's seven experiences are published. The schedule and specific ceremonies are still to be finalized in the itinerary.
 - **Overview and copy.** New copy in Estar's voice is in the **draft** for her approval (`migrations/014_draft_copy.sql`): the overview letter, who the retreat welcomes, "What you'll take home", "Your investment" and a note on the pace of the days. Preview it at `/?preview=1` and publish from Landing page. Exclusions are still a placeholder.
 - ~~**Bio and portrait.**~~ **Done:** Estar's biography and her portrait in Meet Estar (`public/media/estar-portrait.jpg`).
-- **FAQs.** Payments, cancellation, meals and day immersions are answered. Arrival and departure, transport, dietary needs, accessibility, room sharing and packing still need answers.
+- ~~**FAQs.**~~ **Done:** all eleven answered in Estar's words, under "Frequently Asked Questions" (`migrations/021_estar_faqs.sql`). Edit them in Landing page, section 11.
 - **Testimonials.** Approved testimonials with written permission.
 - **Contact.** The verified support email, phone and response time.
 - **Legal text.** Privacy policy, agreement and policy text from the attorney.

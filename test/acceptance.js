@@ -115,10 +115,15 @@ class Client {
     assert.match(content.data.site.immersions.includes, /ceremonies, embodiment practices, workshops, sisterhood gatherings and meals/);
     assert.ok(content.data.site.faqs.some((f) => f.id === "f11" && /without staying overnight/.test(f.q)));
   });
-  await check("Payment terms: deposit and installments are in the FAQs, but the terms stay unconfirmed and off the page", async () => {
+  await check("Estar's eleven FAQs are public in her order, with the heading; terms stay unconfirmed and off the page", async () => {
     assert.equal(content.data.retreat.terms, null);
-    assert.match(content.data.site.faqs.find((f) => f.id === "f8").a, /30% deposit/);
-    assert.match(content.data.site.faqs.find((f) => f.id === "f9").a, /^Deposits are nonrefundable/);
+    const f = content.data.site.faqs;
+    assert.equal(f.length, 11); assert.equal(f[0].q, "When do eye arrive and depart?"); assert.equal(f[10].q, "What should eye bring?");
+    assert.ok(!f.some((x) => /\[[^\]]+\]/.test(x.a)), "no placeholder answers left");
+    assert.match(f.find((x) => x.id === "f8").a, /30% nonrefundable deposit/);
+    assert.match(f.find((x) => x.id === "f9").a, /^All retreat deposits are nonrefundable/);
+    assert.match(f.find((x) => x.id === "f10").a, /\n\* A bathing suit\n/);
+    assert.equal(content.data.site.faqPage.intro, "Everything You Need to Know Before Entering the Sanctuary 🌺");
   });
   await check("Draft preview is refused without an admin session", async () => {
     const r = await visitor.get("/api/site?fn=content&preview=1");

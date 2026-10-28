@@ -3,7 +3,12 @@ window.EG = (() => {
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   // Highlights [placeholders] so reviewers can see what still needs real content.
   const mark = (s) => esc(s).replace(/\[([^\]]{1,300})\]/g, '<mark class="ph" title="Placeholder: needs approved content">[$1]</mark>');
-  const paras = (s) => String(s || "").split(/\n{2,}/).filter((p) => p.trim()).map((p) => `<p>${mark(p).replace(/\n/g, "<br>")}</p>`).join("");
+  // Blank line = new paragraph; a paragraph whose lines all start with "* " or "- " becomes a bulleted list.
+  const paras = (s) => String(s || "").split(/\n{2,}/).filter((p) => p.trim()).map((p) => {
+    const lines = p.trim().split("\n");
+    if (lines.every((l) => /^\s*[*-]\s+/.test(l))) return `<ul>${lines.map((l) => `<li>${mark(l.replace(/^\s*[*-]\s+/, ""))}</li>`).join("")}</ul>`;
+    return `<p>${mark(p).replace(/\n/g, "<br>")}</p>`;
+  }).join("");
   const money = (c, opts = {}) => c == null ? "" : (c / 100).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: opts.cents ? 2 : (c % 100 ? 2 : 0) });
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
   const fmtDateTime = (d) => d ? new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "";

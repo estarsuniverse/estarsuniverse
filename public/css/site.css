@@ -166,6 +166,9 @@ section { padding: clamp(64px, 9vw, 112px) 0; }
 .faq-list summary::after { content: "+"; position: absolute; right: 6px; top: 14px; font: 400 26px var(--sans); color: var(--olive); }
 .faq-list details[open] summary::after { content: "\2212"; }
 .faq-list .answer { padding: 0 0 18px; color: var(--muted); max-width: 70ch; }
+.faq-list .answer ul { margin: 0 0 14px; padding-left: 22px; }
+.faq-list .answer li { margin: 4px 0; }
+.faqs .lede { margin-top: 6px; }
 .quotes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 22px; margin-top: 24px; }
 .quotes blockquote { margin: 0; background: #fff; border-radius: 6px; padding: 24px; border-left: 3px solid var(--gold); }
 .quotes blockquote p { font-family: var(--serif); font-style: italic; font-size: 17px; }
