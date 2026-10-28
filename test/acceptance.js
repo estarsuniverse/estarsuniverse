@@ -255,26 +255,18 @@ async function signInGuest(c, email) {
       const r = await visitor.admin(a); assert.equal(r.status, 401, a);
     }
   });
-  await check("First-owner setup requires the setup token", async () => {
-    const r = await owner.admin("setup", { setupToken: "wrong-token-xxxxxx", name: "Estar", email: "estar@example.com", password: "a-long-password-123" });
-    assert.equal(r.status, 403);
-    const ok = await owner.admin("setup", { setupToken: "local-setup-token-123", name: "Estar", email: "estar@example.com", password: "a-long-password-123" });
-    assert.equal(ok.status, 200);
-  });
-  await check("Admin data stays locked until the admin code (ADMIN_PASSWORD) is entered", async () => {
-    const r = await owner.admin("overview"); assert.equal(r.status, 401); assert.equal(r.data.needMfa, true);
-    assert.equal((await owner.admin("status")).data.state, "code_verify");
-    assert.equal((await owner.admin("code-verify", { code: "wrong-code" })).status, 400);
-    assert.equal((await owner.admin("code-verify", { code: "local-admin-code-123" })).status, 200);
+  await check("The owner signs in with ADMIN_EMAIL and ADMIN_PASSWORD; wrong passwords and the old setup flow are refused", async () => {
+    assert.equal((await owner.admin("status")).data.state, "signed_out");
+    assert.equal((await owner.admin("login", { email: "estar@example.com", password: "wrong-password-1" })).status, 400);
+    assert.equal((await owner.admin("login", { email: "someone@example.com", password: "local-admin-password-123" })).status, 400);
+    assert.equal((await owner.admin("setup", { setupToken: "x", name: "X", email: "x@example.com", password: "another-long-pass-1" })).status, 400);
+    assert.equal((await owner.admin("code-verify", { code: "x" })).status, 400);
+    assert.equal((await owner.admin("login", { email: " Estar@Example.com", password: "local-admin-password-123" })).status, 200);
+    const st = (await owner.admin("status")).data;
+    assert.equal(st.state, "ready"); assert.equal(st.admin.role, "owner"); assert.equal(st.admin.name, "Estar");
     assert.equal((await owner.admin("overview")).status, 200);
   });
-  await check("A password alone cannot add an authenticator app or skip the admin code", async () => {
-    const c = new Client("10.1.0.8");
-    assert.equal((await c.admin("login", { email: "estar@example.com", password: "a-long-password-123" })).status, 200);
-    assert.equal((await c.admin("mfa-begin")).status, 401);
-    assert.equal((await c.admin("overview")).status, 401);
-  });
-  await check("An admin can optionally switch to an authenticator app", async () => {
+  await check("An admin can optionally add an authenticator app", async () => {
     const b = await owner.admin("mfa-begin"); assert.ok(b.data.secret);
     const bad = await owner.admin("mfa-enable", { code: "000000" }); assert.equal(bad.status, 400);
     const ok = await owner.admin("mfa-enable", { code: sec.totpNow(b.data.secret) }); assert.equal(ok.status, 200);
@@ -282,28 +274,27 @@ async function signInGuest(c, email) {
     const o = await owner.admin("overview"); assert.equal(o.status, 200);
     assert.ok(o.data.waitlist.total >= 3);
   });
-  await check("Setup cannot run twice", async () => {
-    const r = await new Client().admin("setup", { setupToken: "local-setup-token-123", name: "X", email: "x@example.com", password: "another-long-pass-1" });
-    assert.equal(r.status, 409);
-  });
-  await check("Once an authenticator app is on, sign-in needs the app code (the shared admin code no longer works)", async () => {
+  await check("Once an authenticator app is on, sign-in also needs the app code", async () => {
     const c = new Client("10.1.0.9");
-    assert.equal((await c.admin("login", { email: "estar@example.com", password: "wrong-password-1" })).status, 400);
-    assert.equal((await c.admin("login", { email: "estar@example.com", password: "a-long-password-123" })).status, 200);
-    assert.equal((await c.admin("overview")).status, 401);
-    assert.equal((await c.admin("code-verify", { code: "local-admin-code-123" })).status, 400);
+    assert.equal((await c.admin("login", { email: "estar@example.com", password: "local-admin-password-123" })).status, 200);
+    assert.equal((await c.admin("status")).data.state, "mfa_verify");
+    const r = await c.admin("overview"); assert.equal(r.status, 401); assert.equal(r.data.needMfa, true);
+    assert.equal((await c.admin("mfa-begin")).status, 401);
+    assert.equal((await c.admin("mfa-verify", { code: "000000" })).status, 400);
     assert.equal((await c.admin("mfa-verify", { code: sec.totpNow(owner.totp) })).status, 200);
     assert.equal((await c.admin("overview")).status, 200);
   });
-  await check("Owner invites staff; staff accepts and signs in with their password plus the admin code", async () => {
+  await check("Owner invites staff; staff accepts and signs in with their own email and password", async () => {
     const r = await owner.admin("staff-invite", { name: "Jadon", email: "jadon@example.com", role: "staff" });
     assert.equal(r.status, 200);
     const tok = r.data.inviteUrl.split("invite=")[1];
     assert.equal((await staff.admin("invite-accept", { token: tok, password: "staff-password-123" })).status, 200);
-    assert.equal((await staff.admin("overview")).status, 401);
-    assert.equal((await staff.admin("code-verify", { code: "local-admin-code-123" })).status, 200);
     assert.equal((await staff.admin("overview")).status, 200);
     assert.equal((await new Client().admin("invite-accept", { token: tok, password: "reuse-attempt-123" })).status, 400);
+    const again = new Client("10.1.0.12");
+    assert.equal((await again.admin("login", { email: "jadon@example.com", password: "staff-password-123" })).status, 200);
+    assert.equal((await again.admin("status")).data.admin.role, "staff");
+    assert.equal((await again.admin("login", { email: "jadon@example.com", password: "local-admin-password-123" })).status, 400, "the owner password only works for the owner email");
   });
   await check("Staff permissions are enforced on the server", async () => {
     const rooms = (await staff.admin("rooms-list")).data.rooms;
@@ -312,7 +303,7 @@ async function signInGuest(c, email) {
     let r = await staff.admin("room-save", { ...base, price_cents: 100 }); assert.equal(r.status, 403);
     r = await staff.admin("room-save", { ...base, price_basis: "per_room" }); assert.equal(r.status, 403);
     r = await staff.admin("room-save", { ...base, beds: "One queen bed" }); assert.equal(r.status, 200);
-    for (const [a, body] of [["retreat-save", { name: "X", timezone: "America/New_York" }], ["terms-save", {}], ["staff-invite", { name: "Y", email: "y@example.com" }], ["template-approve", { key: "preparation", enabled: true }], ["reservations-toggle", { open: true }], ["client-email-change", { from: "a@b.co", to: "c@d.co" }], ["unit-save", { label: "x" }]]) {
+    for (const [a, body] of [["retreat-save", { name: "X", timezone: "America/New_York" }], ["terms-save", {}], ["staff-invite", { name: "Y", email: "y@example.com" }], ["template-approve", { key: "preparation", enabled: true }], ["reservations-toggle", { open: true }], ["client-email-change", { from: "a@b.co", to: "c@d.co" }], ["unit-save", { label: "x" }], ["payment-links-save", { links: { "*": { full: "https://pay.example.com/x" } } }]]) {
       assert.equal((await staff.admin(a, body)).status, 403, a);
     }
   });
@@ -343,6 +334,32 @@ async function signInGuest(c, email) {
     assert.equal(refused.status, 400); assert.match(refused.data.error, /early-bird price for Test must be lower/);
     assert.equal((await owner.admin("retreat-save", ret)).status, 200, "saving the retreat keeps its immersions");
     assert.equal((await owner.admin("retreat-get")).data.retreat.immersions.length, 2);
+  });
+  await check("Payment links: owner only, https only, hidden from visitors until reservations open, and tracked on the checklist", async () => {
+    let c = (await owner.admin("retreat-get")).data.checklist.items.find((i) => i.key === "payment_links");
+    assert.ok(c && !c.ok && /Sapphire/.test(c.detail) && /One-Day Immersion/.test(c.detail));
+    assert.equal((await owner.admin("payment-links-save", { links: { "*": { full: "http://pay.example.com/x" } } })).status, 400);
+    const links = { "*": { deposit: "https://pay.example.com/deposit", full: "https://pay.example.com/full" },
+      room_sapphire: { full: "https://pay.example.com/sapphire" }, imm_one_day: { deposit: "https://pay.example.com/nope", full: "https://pay.example.com/one-day" },
+      imm_two_day: { full: "https://pay.example.com/two-day" }, not_an_option: { full: "https://pay.example.com/x" } };
+    assert.equal((await owner.admin("payment-links-save", { links })).status, 200);
+    const saved = (await owner.admin("retreat-get")).data;
+    assert.equal(saved.retreat.payment_links.not_an_option, undefined);
+    c = saved.checklist.items.find((i) => i.key === "payment_links"); assert.ok(c.ok, c.detail);
+    const pub = (await visitor.get("/api/site?fn=content")).data.retreat;
+    assert.deepEqual(pub.payLinks, {}); assert.equal(pub.depositPercent, 30);
+    const { resolvedPayLinks } = require("../lib/retreat");
+    const r = resolvedPayLinks({ day_pass_enabled: true, immersions: saved.retreat.immersions, payment_links: saved.retreat.payment_links }, [{ id: "room_sapphire" }, { id: "room_emerald" }]);
+    assert.deepEqual(r.room_sapphire, { deposit: "https://pay.example.com/deposit", full: "https://pay.example.com/sapphire" });
+    assert.deepEqual(r.room_emerald, { deposit: "https://pay.example.com/deposit", full: "https://pay.example.com/full" });
+    assert.deepEqual(r.imm_one_day, { deposit: "", full: "https://pay.example.com/one-day" }, "immersions are paid in full");
+  });
+  await check("The Reserve section and Book a call wording are public; the hero button says Reserve", async () => {
+    const s = (await visitor.get("/api/site?fn=content")).data.site;
+    assert.equal(s.reserve.heading, "Reserve your place"); assert.equal(s.reserve.callLabel, "Book a call");
+    assert.equal(s.hero.primaryLabel, "Reserve your place");
+    assert.equal(s.reserve.payLabel, "Secure your spot");
+    assert.ok(!/waiting list/i.test(s.faqs.find((f) => f.id === "f8").a));
   });
 
   // ---------- Content ----------

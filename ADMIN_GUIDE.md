@@ -1,6 +1,6 @@
 # Admin guide
 
-Sign in at **/admin/** with your email and your own password, then enter the admin code. If you've turned on an authenticator app in Settings and Audit, enter the code from the app instead. You'll be signed out after 2 hours without activity.
+Sign in at **/admin/** with your email and password. The owner uses the `ADMIN_EMAIL` and `ADMIN_PASSWORD` set in Vercel; staff use the password they chose from their invitation. If you've added an authenticator app in Settings and Audit, enter its code after your password. You'll be signed out after 2 hours without activity.
 
 **Owners** can do everything.
 
@@ -30,6 +30,8 @@ Only owners can:
   - When everything is checked, the room shows **Ready to sell**.
 - **Bookings and Payments.**
   - The launch checklist and the payment terms editor.
+  - **Payment links** (owner only): where the **Secure your spot** button sends guests for each room (deposit and pay in full) and each day immersion (pay in full). The default links apply to any room left blank. When someone pays, mark that room's unit sold in Rooms and Inventory so it shows as sold out.
+  - **Open reservations** turns the Secure your spot button on, once the checklist is complete.
   - Reservations can only be opened once every checklist item is done.
   - Saved terms apply to new bookings only. Existing bookings keep the terms they were sold with.
 - **Client Experience.** The itinerary (mark sessions provisional until confirmed), announcements for everyone in the portal, the packing list and arrival guidance for confirmed guests, the forms list and the portal text.
@@ -40,6 +42,7 @@ Only owners can:
   - the Experience sessions and the note on the pace of the days
   - "What you'll take home" and the "Your investment" summary (each shows once filled in)
   - the wording around the day immersions
+  - the Reserve section and the **Book a call** button and link
   - Estar's bio
   - FAQs
   - testimonials

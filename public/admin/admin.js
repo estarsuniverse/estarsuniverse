@@ -84,9 +84,7 @@
     let st;
     try { st = await call("status"); } catch (e) { return authCard(`<h1>Admin</h1><p class="form-error">${esc(e.message)}</p>`); }
     ME = st.admin || null;
-    if (st.state === "setup") return setupScreen();
-    if (st.state === "signed_out") return loginScreen();
-    if (st.state === "code_verify") return codeScreen();
+    if (st.state === "signed_out") return loginScreen(st.ownerSet);
     if (st.state === "mfa_verify") return verifyScreen();
     shell();
   }
@@ -103,37 +101,14 @@
     const first = f.querySelector("input"); if (first) first.focus();
   }
 
-  function setupScreen() {
-    authCard(`<h1>Create the owner account</h1><p class="muted">This only appears once, before any admin exists. You’ll need the setup token from the Vercel environment variables.</p>
-      <form id="f" novalidate>
-        <label>Setup token<input type="password" name="setupToken" autocomplete="off" required></label>
-        <label>Your name<input type="text" name="name" autocomplete="name" required></label>
-        <label>Email<input type="email" name="email" autocomplete="email" required></label>
-        <label>Password <span class="hint">(12+ characters)</span><input type="password" name="password" autocomplete="new-password" minlength="12" required></label>
-        <label>Confirm password<input type="password" name="password2" autocomplete="new-password" required></label>
-        <p class="form-error" role="alert"></p><button class="btn btn-primary" type="submit">Create owner account</button></form>`);
-    bindForm("f", async (v) => {
-      if (v.password !== v.password2) throw new Error("The passwords don’t match.");
-      await call("setup", v); boot();
-    });
-  }
-
-  function loginScreen() {
+  function loginScreen(ownerSet) {
     authCard(`<h1>Admin sign in</h1><p class="muted">Embodied Godis Retreat</p>
+      ${ownerSet === false ? '<p class="form-error">The owner sign-in isn’t set up yet. In Vercel, add ADMIN_EMAIL and ADMIN_PASSWORD (8+ characters) under Settings, Environment Variables, then redeploy.</p>' : ""}
       <form id="f" novalidate>
         <label>Email<input type="email" name="email" autocomplete="username" required></label>
         <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
-        <p class="form-error" role="alert"></p><button class="btn btn-primary" type="submit">Continue</button></form>`);
+        <p class="form-error" role="alert"></p><button class="btn btn-primary" type="submit">Sign in</button></form>`);
     bindForm("f", async (v) => { await call("login", v); boot(); });
-  }
-
-  function codeScreen() {
-    authCard(`<h1>Admin code</h1><p class="muted">Enter the admin code to finish signing in.</p>
-      <form id="f" novalidate><label>Admin code<input type="password" name="code" autocomplete="off" required></label>
-      <p class="form-error" role="alert"></p><button class="btn btn-primary" type="submit">Sign in</button>
-      <button class="linkish" type="button" id="other">Sign in as someone else</button></form>`);
-    bindForm("f", async (v) => { await call("code-verify", v); boot(); });
-    document.getElementById("other").onclick = async () => { await call("logout"); boot(); };
   }
 
   async function enrollScreen() {
@@ -141,12 +116,12 @@
     let r;
     try { r = await call("mfa-begin"); } catch (e) { return authCard(`<h1>Two-step sign-in</h1><p class="form-error">${esc(e.message)}</p>`); }
     authCard(`<h1>Use an authenticator app</h1>
-      <p class="muted">Optional. An authenticator app (Google Authenticator, 1Password, Authy, or similar) replaces the admin code for your account. Scan this code, then enter the 6-digit number it shows.</p>
+      <p class="muted">Optional. An authenticator app (Google Authenticator, 1Password, Authy, or similar) adds a second step after your password. Scan this code, then enter the 6-digit number it shows.</p>
       <div class="qr">${r.qr}</div>
       <p class="small muted" style="margin:10px 0 4px">Can’t scan? Enter this key in the app:</p><p class="secret">${esc(r.secret)}</p>
       <form id="f" novalidate><label>6-digit code<input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required></label>
       <p class="form-error" role="alert"></p><button class="btn btn-primary" type="submit">Turn on and continue</button>
-      <button class="linkish" type="button" id="cancel-enroll">Cancel and keep using the admin code</button></form>`);
+      <button class="linkish" type="button" id="cancel-enroll">Cancel</button></form>`);
     document.getElementById("cancel-enroll").onclick = () => boot();
     bindForm("f", async (v) => { await call("mfa-enable", v); boot(); });
   }
@@ -163,7 +138,7 @@
   async function inviteScreen(tok) {
     let info;
     try { info = await call("invite-info", { token: tok }); } catch (e) { history.replaceState(null, "", "/admin/"); return authCard(`<h1>Invitation</h1><p class="form-error">${esc(e.message)}</p><p><a href="/admin/">Go to sign in</a></p>`); }
-    authCard(`<h1>Welcome, ${esc(info.name)}</h1><p class="muted">Choose a password for ${esc(info.email)}. Next you’ll set up two-step sign-in.</p>
+    authCard(`<h1>Welcome, ${esc(info.name)}</h1><p class="muted">Choose a password for ${esc(info.email)}.</p>
       <form id="f" novalidate><label>Password <span class="hint">(12+ characters)</span><input type="password" name="password" autocomplete="new-password" required></label>
       <label>Confirm password<input type="password" name="password2" autocomplete="new-password" required></label>
       <p class="form-error" role="alert"></p><button class="btn btn-primary" type="submit">Continue</button></form>`);
@@ -407,7 +382,7 @@
 
   // ---------- Bookings and payments ----------
   async function vBookings(v) {
-    const [rg, bl] = await Promise.all([call("retreat-get"), call("bookings-list")]);
+    const [rg, bl, rl] = await Promise.all([call("retreat-get"), call("bookings-list"), call("rooms-list")]);
     const r = rg.retreat, t = r.terms || {}, c = rg.checklist, own = isOwner() ? "" : "disabled";
     S.inst = (t.installments || []).map((x) => ({ ...x }));
     const ta = (name, label, hint) => `<label class="wide">${label}${hint ? ` <span class="hint">${hint}</span>` : ""}<textarea name="${name}" maxlength="4000" ${own}>${esc(t[name] || "")}</textarea></label>`;
@@ -433,6 +408,14 @@
           <label class="check"><input type="checkbox" name="terms_confirmed" ${r.terms_confirmed ? "checked" : ""} ${own}> These payment terms are approved</label>
           <label class="check"><input type="checkbox" name="legal_confirmed" ${r.legal_confirmed ? "checked" : ""} ${own}> The agreement and policy text from the attorney is in place and approved</label>
           ${isOwner() ? '<div><button class="btn btn-primary" type="submit">Save payment terms</button></div>' : ""}</form></div>
+        <div class="panel"><h2>Payment links${ownerNote()}</h2><p class="small muted">Where the Secure your spot button sends guests (your payment site). Rooms can be paid by deposit or in full; day immersions are paid in full. Leave a room blank to use the default links. The buttons only work while reservations are open. When a room is paid for, mark its unit sold in Rooms and Inventory so no one else can choose it.</p>
+          <form class="form" id="links-form" novalidate><div class="table-wrap"><table><thead><tr><th>Option</th><th>Deposit link</th><th>Pay in full link</th></tr></thead><tbody>
+            ${[["*", "Default for every room", false], ...rl.rooms.map((x) => [x.id, x.name, false]), ...(r.immersions || []).map((i) => [i.id, i.name, true])].map(([id, name, imm]) => {
+              const l = (r.payment_links || {})[id] || {};
+              return `<tr><td>${esc(name)}</td><td>${imm ? '<span class="small muted">Paid in full</span>' : `<input type="url" data-link="${esc(id)}" data-k="deposit" value="${esc(l.deposit || "")}" placeholder="https://" aria-label="${esc(name)} deposit link" ${own}>`}</td>
+                <td><input type="url" data-link="${esc(id)}" data-k="full" value="${esc(l.full || "")}" placeholder="https://" aria-label="${esc(name)} pay in full link" ${own}></td></tr>`;
+            }).join("")}</tbody></table></div>
+          ${isOwner() ? '<div><button class="btn btn-primary" type="submit">Save payment links</button></div>' : ""}</form></div>
         <div class="panel"><h2>Bookings</h2>${bl.rows.length ? `<div class="table-wrap"><table><thead><tr><th>Guest</th><th>Room</th><th>Status</th><th>Total</th><th>Confirmed by</th></tr></thead><tbody>${bl.rows.map((b) => `<tr><td><span class="name">${esc(b.name || "")}</span><small>${esc(b.email)}</small></td><td>${esc(b.room || "")}</td><td>${esc(b.status)}</td><td>${money(b.total_cents, { cents: true })}</td><td>${esc(b.confirmed_by || "")}</td></tr>`).join("")}</tbody></table></div>` : '<p class="muted">No bookings yet. Paid reservations arrive in Phase 2, after the checklist above is complete.</p>'}</div>
         <div class="panel"><h2>Needs review</h2>${bl.review.length ? `<ul>${bl.review.map((x) => `<li>${esc(x.provider)} ${esc(x.provider_ref)}: ${money(x.amount_cents, { cents: true })}</li>`).join("")}</ul>` : '<p class="muted">Nothing to reconcile. Payments that can’t be matched to a booking will appear here instead of overselling a room.</p>'}</div>`;
     renderInst();
@@ -443,6 +426,14 @@
       const open = !r.reservations_open;
       if (await confirmBox(open ? "Open reservations?" : "Close reservations?", open ? "Guests will be able to reserve rooms." : "Guests will no longer be able to start new reservations.", open ? "Open" : "Close", !open))
         busy(tog, async () => { await call("reservations-toggle", { open }); vBookings(v); });
+    };
+    const lf = document.getElementById("links-form");
+    lf.addEventListener("input", () => (S.unsaved = true));
+    lf.onsubmit = (ev) => {
+      ev.preventDefault();
+      const links = {};
+      lf.querySelectorAll("[data-link]").forEach((inp) => { (links[inp.dataset.link] ||= {})[inp.dataset.k] = inp.value.trim(); });
+      busy(lf.querySelector("button[type=submit]"), async () => { await call("payment-links-save", { links }); S.unsaved = false; toast("Payment links saved."); vBookings(v); });
     };
     const f = document.getElementById("terms-form");
     f.addEventListener("input", () => (S.unsaved = true));
@@ -595,7 +586,13 @@
         ${F.text("trust.policiesText", "Policies (privacy, refunds, conduct)", { wide: true, area: true, rows: 5, hint: "Text from the attorney" })}</div></div>
       <div class="panel"><h2>Contact</h2><div class="fgrid">${F.text("contact.email", "Support email", { type: "email" })}${F.text("contact.phone", "Phone")}${F.text("contact.responseTime", "Response expectation", { hint: "e.g. We reply within 2 business days." })}
         <div class="wide">${F.bool("contact.verified", `These contact details are verified and can be shown${isOwner() ? "" : " (owner only)"}`, { dis: own })}</div></div></div>
-      <div class="panel"><h2>Waiting list</h2><div class="fgrid">${F.text("waitlist.heading", "Heading")}${F.text("waitlist.intro", "Introduction", { wide: true, area: true })}
+      <div class="panel"><h2>Reserve and Book a call</h2><p class="small muted">The section where guests choose a room or immersion and pay. Prices come from Rooms and Inventory and Settings; the payment links are set by the owner in Bookings and Payments.</p><div class="fgrid">
+        ${F.text("reserve.heading", "Heading")}${F.text("reserve.payLabel", "Payment button")}${F.text("reserve.intro", "Introduction", { wide: true, area: true, rows: 2 })}
+        ${F.text("reserve.depositLabel", "Deposit option")}${F.text("reserve.fullLabel", "Pay in full option")}
+        ${F.text("reserve.closedLabel", "Button while payments are closed")}${F.text("reserve.closedNote", "Note while payments are closed", { wide: true, area: true, rows: 2 })}
+        <div class="wide"><h3>Book a call</h3></div>${F.text("reserve.callHeading", "Heading")}${F.text("reserve.callLabel", "Button")}${F.text("reserve.callText", "Text", { wide: true, area: true, rows: 2 })}
+        ${F.text("reserve.callUrl", "Booking link", { wide: true, hint: "Your scheduling page, starting with https://. Leave blank to hide" })}</div></div>
+      <div class="panel"><h2>Waiting list (guest portal)</h2><div class="fgrid">${F.text("waitlist.heading", "Heading")}${F.text("waitlist.intro", "Introduction", { wide: true, area: true })}
         ${F.text("waitlist.privacyNotice", "Privacy notice", { wide: true, area: true })}${F.text("waitlist.consentText", "Marketing consent wording (checkbox starts unchecked)", { wide: true, area: true })}
         ${F.text("waitlist.successMessage", "Success message", { wide: true, area: true })}</div>
         <p class="small muted">Consent version: ${esc(w.consentVersion || "")} · Privacy version: ${esc(w.privacyVersion || "")}. Changing either wording creates a new version when published, so each sign-up records exactly what she agreed to.</p></div>`;
@@ -672,13 +669,13 @@
       <div class="panel"><h2>Staff access</h2><div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Two-step sign-in</th><th>Last sign-in</th><th></th></tr></thead><tbody>
         ${sl.rows.map((a) => `<tr><td><span class="name">${esc(a.name)}</span><small>${esc(a.email)}</small>${a.active ? "" : tag("Deactivated", "bad")}${a.invite_expires ? `<small>Invitation pending until ${fmtDateTime(a.invite_expires)}</small>` : ""}</td>
           <td>${isOwner() ? `<select data-role="${esc(a.id)}" aria-label="Role for ${esc(a.name)}"><option value="owner" ${a.role === "owner" ? "selected" : ""}>Owner</option><option value="staff" ${a.role === "staff" ? "selected" : ""}>Staff</option></select>` : esc(a.role)}</td>
-          <td>${a.totp_enabled ? tag("Authenticator app", "ok") : tag("Admin code", "ok")}</td><td>${a.last_login_at ? fmtDateTime(a.last_login_at) : "Never"}</td>
+          <td>${a.totp_enabled ? tag("Authenticator app", "ok") : tag("Password", "ok")}</td><td>${a.last_login_at ? fmtDateTime(a.last_login_at) : "Never"}</td>
           <td>${isOwner() && a.id !== ME.id ? `<div class="row"><button class="iconbtn" data-active="${esc(a.id)}" data-on="${a.active ? 0 : 1}">${a.active ? "Deactivate" : "Reactivate"}</button>${a.totp_enabled ? `<button class="iconbtn" data-mfa="${esc(a.id)}">Remove authenticator app</button>` : ""}</div>` : ""}</td></tr>`).join("")}
         </tbody></table></div>
         ${isOwner() ? `<form class="form" id="inv-form" style="margin-top:14px" novalidate><h3>Invite someone</h3><div class="fgrid"><label>Name<input type="text" name="name" required></label><label>Email<input type="email" name="email" required></label><label>Role<select name="role"><option value="staff">Staff</option><option value="owner">Owner</option></select></label><div style="align-self:end"><button class="btn btn-primary" type="submit">Send invitation</button></div></div><p class="small muted" id="inv-link"></p></form>` : ""}
         <p class="small muted">Owners can change roles, payment settings, prices and sensitive configuration. Staff can manage the waiting list, clients, room descriptions and photos, content and email drafts.</p></div>
-      <div class="panel"><h2>Your sign-in</h2><p class="small muted">You sign in with your own password, then ${ME.authenticator ? "a code from your authenticator app" : "the admin code (set as ADMIN_PASSWORD in Vercel). Change that code whenever someone leaves the team"}.</p>
-        ${ME.authenticator ? "" : '<button class="btn btn-outline" id="use-app">Optional: use an authenticator app instead</button>'}</div>
+      <div class="panel"><h2>Your sign-in</h2><p class="small muted">You sign in with your email and password${ME.authenticator ? ", then a code from your authenticator app" : ""}. The owner can always sign in with ADMIN_EMAIL and ADMIN_PASSWORD from Vercel; change ADMIN_PASSWORD there to change it.</p>
+        ${ME.authenticator ? "" : '<button class="btn btn-outline" id="use-app">Optional: add an authenticator app</button>'}</div>
       <div class="panel"><h2>Integrations</h2><ul class="checklist">${ig.items.map((i) => `<li><span class="${i.ok ? "ok" : "no"}">${i.ok ? "✓" : "✕"}</span><span>${esc(i.name)}<br><small class="muted">${esc(i.detail)}</small></span></li>`).join("")}</ul></div>
       <div class="panel"><h2>Change history</h2><div class="table-wrap"><table><thead><tr><th>When</th><th>Who</th><th>What</th><th>Details</th></tr></thead><tbody id="audit-rows"></tbody></table></div>
         <button class="iconbtn" id="audit-more" style="margin-top:10px">Load older</button></div>`;
@@ -701,7 +698,7 @@
     };
     v.querySelectorAll("[data-role]").forEach((s) => (s.onchange = () => busy(null, async () => { const a = sl.rows.find((x) => x.id === s.dataset.role); await call("staff-update", { id: a.id, role: s.value, active: a.active }); toast("Role updated."); vSettings(v); })));
     v.querySelectorAll("[data-active]").forEach((b) => (b.onclick = () => busy(b, async () => { const a = sl.rows.find((x) => x.id === b.dataset.active); await call("staff-update", { id: a.id, role: a.role, active: b.dataset.on === "1" }); vSettings(v); })));
-    v.querySelectorAll("[data-mfa]").forEach((b) => (b.onclick = async () => { if (await confirmBox("Remove their authenticator app?", "They’ll be signed out and will use the admin code at their next sign-in.", "Remove", true)) busy(b, async () => { await call("staff-reset-mfa", { id: b.dataset.mfa }); toast("Removed."); vSettings(v); }); }));
+    v.querySelectorAll("[data-mfa]").forEach((b) => (b.onclick = async () => { if (await confirmBox("Remove their authenticator app?", "They’ll be signed out and will sign in with just their password at their next sign-in.", "Remove", true)) busy(b, async () => { await call("staff-reset-mfa", { id: b.dataset.mfa }); toast("Removed."); vSettings(v); }); }));
     const inv = document.getElementById("inv-form");
     if (inv) inv.onsubmit = (ev) => { ev.preventDefault(); busy(inv.querySelector("button"), async () => { const r = await call("staff-invite", Object.fromEntries(new FormData(inv))); document.getElementById("inv-link").innerHTML = `Invitation emailed. You can also share this private link (expires in 72 hours): <br><code>${esc(r.inviteUrl)}</code>`; toast("Invitation sent."); }); };
     document.getElementById("audit-more").onclick = (e) => busy(e.target, async () => { const last = S.audit[S.audit.length - 1]; if (!last) return; const r = await call("audit-list", { before: last.id }); S.audit.push(...r.rows); renderAudit(); if (!r.rows.length) e.target.hidden = true; });

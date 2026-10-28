@@ -36,8 +36,9 @@ Paid reservations are built in Phase 2. They can only open after the launch chec
 - **Money** is stored as whole cents in USD. Each retreat has an explicit timezone. Every room, inventory unit and booking belongs to a retreat, so later seasonal events stay separate.
 - **Security**
   - Guests sign in with a one-time code sent to their email. A name and email alone never unlock anything.
-  - Admins have named accounts with owner or staff roles. After their own password, they enter a shared admin code (`ADMIN_PASSWORD` in Vercel). Any admin can optionally switch to an authenticator app instead. Note: a password plus a shared code are both things you know, so this is lighter than true two-factor sign-in. Turning on authenticator apps is the stronger option before launch.
-  - Every API action checks the session, the second sign-in step and the role on the server.
+  - Admins sign in with an email and password. The owner's are `ADMIN_EMAIL` and `ADMIN_PASSWORD` in Vercel (the owner account is created on first sign-in, and those details always work for it). Staff are invited and choose their own password. Any admin can add an authenticator app as a second step, which is recommended before launch: with a password alone, anyone who learns it can sign in.
+  - Every API action checks the session (and the authenticator step for admins who use one) and the role on the server.
+  - Payment links (where **Secure your spot** goes) can only be changed by the owner, like prices.
   - Portal data is always looked up from the signed-in guest's own account, never from an ID the browser sends.
   - Rate limits, spam checks and origin checks apply to every form.
   - Private pages carry `noindex`.
@@ -74,16 +75,17 @@ All accounts should be **owned by Empowered Wombman**, with collaborators added 
 5. **Set up email.** In Resend:
    - Add and verify the sending domain (for example `empoweredwombman.com`) by adding the DNS records Resend shows.
    - Create an API key.
-6. **Add environment variables.** Go to Settings, then Environment Variables, and add the values listed in `.env.example`:
+6. **Add environment variables.** Go to Settings, then Environment Variables, and add:
    - `APP_SECRET`
-   - `SETUP_TOKEN`
-   - `ADMIN_PASSWORD` (the admin code)
+   - `ADMIN_EMAIL` (the owner's sign-in email)
+   - `ADMIN_PASSWORD` (the owner's sign-in password, 8+ characters)
+   - `ADMIN_NAME` (optional; the owner's name in the change history)
    - `RESEND_API_KEY`
    - `EMAIL_FROM`
    - `CRON_SECRET`
    - `SITE_URL`
-7. **Deploy.** Then open `/admin/`, create the owner account using the `SETUP_TOKEN`, and enter the admin code (`ADMIN_PASSWORD`). Once the owner exists you can delete `SETUP_TOKEN`.
-8. **Invite staff.** The owner invites staff from **Settings and Audit**. Each person sets their own password and uses the admin code to finish signing in. Share the code privately, and change `ADMIN_PASSWORD` (then redeploy) whenever someone leaves the team.
+7. **Deploy.** Then open `/admin/` and sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD`. To change the owner password, change `ADMIN_PASSWORD` in Vercel and redeploy. `SETUP_TOKEN` is no longer used and can be deleted.
+8. **Invite staff.** The owner invites staff from **Settings and Audit**. Each person sets their own password. Deactivate them there when they leave the team.
 9. **Check that everything is connected.** Open `/api/site?fn=health` on the live site. It lists each setting as present or missing, with how to fix it, and never shows the values. After you sign in, the **Integrations** list in Settings and Audit shows the same.
 
 **Email retry schedule.** On Vercel's Hobby plan, scheduled jobs run once a day, so `vercel.json` sends retries daily. On the Pro plan, change the schedule to `*/15 * * * *` so failed emails retry every 15 minutes. Emails are also sent immediately when they are created, and staff can retry from **Communications** at any time.
@@ -108,13 +110,12 @@ Neon keeps point-in-time history of the database, and you can restore to an earl
 ```bash
 npm install
 npm run dev          # http://localhost:3000 (in-memory Postgres, fake email)
-npm test             # 49 end-to-end acceptance checks
+npm test             # 48 end-to-end acceptance checks
 ```
 
 Local testing works like this:
 
-- **Setup token:** `local-setup-token-123`
-- **Admin code:** `local-admin-code-123`
+- **Admin sign-in:** `estar@example.com` with password `local-admin-password-123`
 - **Fake emails:** viewable at `/dev/outbox`
 - **Simulated email outage:** turn it on with `/dev/email-fail?on=1`
 
@@ -128,11 +129,11 @@ The dev server is for local testing only. It is never deployed.
 | --- | --- |
 | Rooms | All 7 room prices are exact, with Emerald and Obsidian aligned at $2,799. Prices are per guest and include the full retreat experience, and each room's guest capacity matches the confirmed details (never inferred from occupancy labels) |
 | Public page | The confirmed dates and venue are shown. Estar's seven experiences, her biography and the day immersions (standard and early-bird prices) are public. The Experience photos load and each has a description. Held-back sessions (such as yoni steaming) and portal-only content are not public |
-| Waiting list | Useful field errors. A day immersion can be chosen instead of a room. Calm success. Exactly one confirmation email. Duplicates, including different-case emails, get the same message with no second row or email. Bot submissions are dropped quietly. Simultaneous duplicate submissions save once. Floods hit a rate limit. If email delivery fails, the sign-up is still saved and the email is queued for retry |
+| Waiting list (API and guest portal) | Useful field errors. A day immersion can be chosen instead of a room. Calm success. Exactly one confirmation email. Duplicates, including different-case emails, get the same message with no second row or email. Bot submissions are dropped quietly. Simultaneous duplicate submissions save once. Floods hit a rate limit. If email delivery fails, the sign-up is still saved and the email is queued for retry |
 | Guest sign-in | Wrong codes are refused with tries remaining. Used codes can't be reused. Resend is limited. A verified guest sees her correct waiting-list status, with no reservation or address |
 | Guest data | A second guest cannot read or change the first guest's records, even with extra IDs in the URL or request. Sign-out works. Cross-site form posts are blocked |
-| Admin access | Unauthenticated requests are refused for every admin action. First-owner setup needs the setup token and can run only once. Data stays locked until the admin code is entered, and a password alone can't skip it or add an authenticator app. Once an admin turns on an authenticator app, the shared code no longer works for that account |
-| Roles | Staff can't change prices, price basis, retreat settings, terms, staff, email approvals, client emails or inventory. The owner can |
+| Admin access | Unauthenticated requests are refused for every admin action. The owner signs in with `ADMIN_EMAIL` and `ADMIN_PASSWORD`; wrong passwords, other emails and the old setup and admin-code steps are refused. Once an admin adds an authenticator app, sign-in also needs its code |
+| Roles | Staff can't change prices, price basis, retreat settings, terms, staff, email approvals, client emails, inventory or payment links. The owner can |
 | Change history | Price changes are recorded with the before and after values and who made the change. The confirmed-details migration is recorded |
 | Paid launch | Dates and venue pass. Still blocked while payment terms or inventory are unconfirmed. Emerald and Obsidian share a price, so no difference note is needed. The 30% deposit is saved. Immersion early-bird prices must be below the standard price |
 | Content | Draft, preview and publish work. The new page copy is in the draft only until published. A held-back session (such as yoni steaming) can't be published until the owner records the safety review. Testimonials need recorded permission. Unsafe links are rejected |
@@ -165,6 +166,7 @@ All of these can be edited in the admin area. Text in `[square brackets]` is hig
 - ~~**Beds, bathrooms and accessibility.**~~ **Done** (`migrations/007_room_beds_bathrooms.sql`; the sofa beds share Moonstone’s bathroom, `migrations/010_downstairs_bathroom_balcony.sql`). Room privacy is no longer shown.
 - ~~**Admission and Emerald/Obsidian pricing.**~~ **Done:** every room price includes the complete retreat experience, and Obsidian matches Emerald at $2,799 (`migrations/013_estar_confirmed_offer.sql`).
 - **Room inventory.** Confirm the sellable units for each room (Rooms and Inventory).
+- **Reserve and payment.** The public page now has a **Reserve** section in place of the waiting-list form: guests choose a room or day immersion, then the 30% deposit or pay in full (immersions are pay in full), and **Secure your spot** goes to the payment link the owner sets in Bookings and Payments. It works only once reservations are open, which needs every launch checklist item, including a payment link for every option. Still needed: the payment links, and the **Book a call** link (Content and Branding, Reserve and Book a call). Paid rooms must be marked sold in Rooms and Inventory, because the outside payment site can't do that.
 - **Payment terms.** Agreed so far and saved in Bookings and Payments: a 30% nonrefundable deposit, the balance in installments, transfers considered with advance notice and approval. Still needed before reservations open: installment deadlines, cancellation windows, refund terms, taxes and fees. Then mark the terms approved.
 - ~~**Day immersions.**~~ **Done:** One-Day $444 and Two-Day $666, with early-bird prices of $333 and $555 (Settings and Audit). Still needed: the early-bird deadline or number of spots.
 - ~~**Experience.**~~ **Done:** Estar's seven experiences are published. The schedule and specific ceremonies are still to be finalized in the itinerary.

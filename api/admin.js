@@ -6,9 +6,7 @@ const { ACTIONS } = require("../lib/admin");
 
 const OPEN = {
   status: (req, res) => auth.status(req, res),
-  setup: (req, res, b) => auth.setup(req, res, b),
   login: (req, res, b) => auth.login(req, res, b),
-  "code-verify": (req, res, b) => auth.codeVerify(req, res, b),
   "mfa-begin": (req, res) => auth.mfaBegin(req, res),
   "mfa-enable": (req, res, b) => auth.mfaEnable(req, res, b),
   "mfa-verify": (req, res, b) => auth.mfaVerify(req, res, b),

@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light only">
 <meta name="theme-color" content="#FFFAFA">
 <title>Embodied Godis Retreat | Empowered Wombman</title>
-<meta name="description" content="An intimate Embodied Godis retreat guided by Estar, the Singing Yogini. Join the waiting list.">
+<meta name="description" content="An intimate Embodied Godis retreat guided by Estar, the Singing Yogini, at Peace on the Pond. Choose your room or day immersion.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -32,7 +32,7 @@
         <li><a href="#itinerary">Itinerary</a></li>
         <li><a href="#host" id="tab-host">Meet Estar</a></li>
         <li><a href="#faqs">FAQs</a></li>
-        <li><a href="#waitlist" class="tab-cta">Join the Waiting List</a></li>
+        <li><a href="#reserve" class="tab-cta">Reserve</a></li>
       </ul>
     </div>
   </nav>
@@ -49,7 +49,7 @@
         <p class="hero-sub" id="hero-sub"></p>
         <p class="hero-when" id="hero-when"></p>
         <div class="hero-ctas">
-          <a class="btn btn-primary" href="#waitlist" id="hero-primary">Join the Waiting List</a>
+          <a class="btn btn-primary" href="#reserve" id="hero-primary">Reserve your place</a>
           <a class="btn btn-ghost" href="#experience" id="hero-secondary">Explore the Experience</a>
         </div>
       </div>
@@ -147,47 +147,28 @@
     </div>
   </section>
 
-  <section class="waitlist on-dark" id="waitlist">
-    <div class="wrap wl-grid">
-      <div>
-        <h2 id="wl-heading">Join the Waiting List</h2>
-        <p class="lede" id="wl-intro"></p>
-        <ul class="wl-points">
-          <li>Free to join. No payment needed.</li>
-          <li>Joining does not reserve a room.</li>
-          <li>We’ll email you as soon as reservations open.</li>
-        </ul>
-      </div>
-      <div class="wl-card">
-        <form id="wl-form" novalidate>
-          <div class="wl-row">
-            <label><span>Your name <span class="req">(required)</span></span>
-              <input type="text" name="name" autocomplete="name" maxlength="100" required aria-describedby="err-name">
-              <span class="field-error" id="err-name" aria-live="polite"></span>
-            </label>
-            <label><span>Email <span class="req">(required)</span></span>
-              <input type="email" name="email" autocomplete="email" inputmode="email" maxlength="254" required aria-describedby="err-email">
-              <span class="field-error" id="err-email" aria-live="polite"></span>
-            </label>
-          </div>
-          <label><span><span id="wl-room-label">Room preference</span> <span class="req">(optional)</span></span>
-            <select name="room_pref" id="wl-room"><option value="undecided">Not sure yet</option><option value="any">Any room</option></select>
-          </label>
-          <label><span>A short intention <span class="req">(optional)</span></span>
-            <textarea name="intention" maxlength="500" rows="3" aria-describedby="wl-count" placeholder="What are you hoping to return to?"></textarea>
-            <span class="counter" id="wl-count">0 / 500</span>
-          </label>
-          <div class="hp" aria-hidden="true"><label>Leave this empty<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
-          <p class="privacy" id="wl-privacy"></p>
-          <label class="check"><input type="checkbox" name="marketing"><span id="wl-consent"></span></label>
-          <p class="form-error" id="wl-error" role="alert"></p>
-          <button class="btn btn-primary" type="submit" id="wl-submit">Join the Waiting List</button>
-        </form>
-        <div class="wl-done" id="wl-done" hidden tabindex="-1">
-          <h3>Thank you, sistar.</h3>
-          <p id="wl-done-msg"></p>
-          <p>You can check your waiting list details any time in your <a href="/portal/">guest portal</a>.</p>
+  <section class="reserve on-dark" id="reserve">
+    <div class="wrap">
+      <h2 id="rs-heading">Reserve your place</h2>
+      <p class="lede" id="rs-intro"></p>
+      <form class="rs-card" id="rs-form" novalidate>
+        <fieldset>
+          <legend>1. Choose your option</legend>
+          <div class="rs-options" id="rs-options"></div>
+        </fieldset>
+        <fieldset id="rs-plan-set" hidden>
+          <legend>2. Choose how to pay</legend>
+          <div class="rs-plans" id="rs-plans"></div>
+        </fieldset>
+        <div class="rs-pay">
+          <p class="rs-summary" id="rs-summary" aria-live="polite">Choose an option to see your total.</p>
+          <a class="btn btn-primary" id="rs-pay" role="button" aria-disabled="true">Secure your spot</a>
+          <p class="rs-closed" id="rs-closed" hidden></p>
         </div>
+      </form>
+      <div class="rs-call" id="rs-call" hidden>
+        <div><h3 id="rs-call-heading"></h3><p id="rs-call-text"></p></div>
+        <a class="btn btn-ghost" id="rs-call-btn" target="_blank" rel="noopener"></a>
       </div>
     </div>
   </section>
@@ -214,8 +195,8 @@
 </dialog>
 
 <div class="dock" id="dock" role="region" aria-label="Quick action">
-  <span class="dock-text">Reservations aren’t open yet</span>
-  <a class="btn btn-primary" href="#waitlist">Join the Waiting List</a>
+  <span class="dock-text" id="dock-text">Reservations open soon</span>
+  <a class="btn btn-primary" href="#reserve">Reserve</a>
 </div>
 
 <script src="/js/common.js"></script>

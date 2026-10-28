@@ -4,7 +4,6 @@
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   const preview = params.get("preview") === "1";
-  let formToken = "";
   let data;
 
   function brandHtml(b, dark) {
@@ -119,7 +118,7 @@
         <span class="inv-meta">${[rm.guest_capacity && `${rm.guest_capacity} ${rm.guest_capacity === 1 ? "guest" : "guests"}`, rm.beds].filter(Boolean).map(esc).join(" · ")}</span>
         <span class="inv-price">${money(rm.price_cents)} <small>${esc(rm.price_basis_label)}</small></span></a></li>`).join("");
       $("inv-pay").innerHTML = (inv.paymentNote ? `<p>${mark(inv.paymentNote)}</p>` : "")
-        + `<a class="btn btn-primary" href="#waitlist">${r.reservationsOpen ? "Reserve your place" : "Join the Waiting List"}</a>`;
+        + '<a class="btn btn-primary" href="#reserve">Reserve your place</a>';
     }
     const t = r.terms;
     const termLabels = { deposit_text: "Deposit", installments_text: "Payment schedule", fees_text: "Fees", taxes_text: "Taxes", cancellation_text: "Cancellation", transfer_text: "Transfers", refund_text: "Refunds" };
@@ -150,24 +149,12 @@
     const c = s.contact || {};
     const contactBits = c.verified ? [c.email && `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`, c.phone && `<a href="tel:${esc(c.phone.replace(/[^\d+]/g, ""))}">${esc(c.phone)}</a>`].filter(Boolean) : [];
     $("contact-line").innerHTML = contactBits.length ? `Still have a question? Reach us at ${contactBits.join(" or ")}.${c.responseTime ? ` ${esc(c.responseTime)}` : ""}` : "";
-    $("foot-links").innerHTML = [...contactBits, '<a href="/portal/">Guest Portal</a>', '<a href="#waitlist">Join the Waiting List</a>'].map((x) => `<span>${x}</span>`).join("");
+    $("foot-links").innerHTML = [...contactBits, '<a href="/portal/">Guest Portal</a>', '<a href="#reserve">Reserve</a>'].map((x) => `<span>${x}</span>`).join("");
     $("foot-fine").textContent = `© ${new Date().getFullYear()} ${b.orgName || "Empowered Wombman"}`;
 
-    // Waiting list
-    const w = s.waitlist || {};
-    $("wl-heading").innerHTML = mark(w.heading || "Join the Waiting List");
-    $("wl-intro").innerHTML = mark(w.intro);
-    $("wl-privacy").innerHTML = mark(w.privacyNotice);
-    $("wl-consent").innerHTML = mark(w.consentText);
-    $("wl-done-msg").innerHTML = mark(w.successMessage);
-    const sel = $("wl-room");
-    const roomOpts = d.rooms.map((rm) => `<option value="${esc(rm.id)}">${esc(rm.name)} (${money(rm.price_cents)})</option>`).join("");
-    const imms = r.immersions || [];
-    sel.insertAdjacentHTML("beforeend", imms.length
-      ? `<optgroup label="Rooms">${roomOpts}</optgroup><optgroup label="Day immersions">${imms.map((i) => `<option value="${esc(i.id)}">${esc(i.name)} (${money(i.price_cents)})</option>`).join("")}</optgroup>`
-      : roomOpts);
-    if (imms.length) $("wl-room-label").textContent = "Room or immersion";
-    if (r.reservationsOpen) document.querySelector("#dock .dock-text").textContent = "Reservations are open";
+    // Reserve
+    renderReserve(d);
+    $("dock-text").textContent = r.reservationsOpen ? "Reservations are open" : "Reservations open soon";
   }
 
   function immersionsHtml(list, c) {
@@ -182,7 +169,7 @@
 
   function roomCard(rm) {
     const photos = rm.photos || [];
-    const avail = rm.availability === "sold_out" ? '<span class="pill">Sold out</span>' : rm.availability === "open" ? '<span class="pill olive">Reservations open</span>' : '<span class="pill line">Waiting list open</span>';
+    const avail = rm.availability === "sold_out" ? '<span class="pill">Sold out</span>' : rm.availability === "open" ? '<span class="pill olive">Available</span>' : '<span class="pill line">Opening soon</span>';
     const cap = rm.guest_capacity ? `${rm.guest_capacity} ${rm.guest_capacity === 1 ? "guest" : "guests"}` : "";
     const adm = rm.includes_admission === "yes" ? "Includes the full retreat experience" : rm.includes_admission === "no" ? "Retreat admission is separate" : "";
     const row = (k, v, fallback) => `<div><dt>${k}</dt><dd>${v ? mark(v) : `<span class="tbd">${fallback || "To be confirmed"}</span>`}</dd></div>`;
@@ -201,7 +188,7 @@
         </dl>
         ${rm.description ? `<div>${EG.paras(rm.description)}</div>` : ""}
         ${rm.difference_note ? `<p class="room-note">${mark(rm.difference_note)}</p>` : ""}
-        <div class="room-foot">${avail}${rm.availability !== "sold_out" ? `<a class="btn btn-outline btn-small" href="#waitlist" data-pick="${esc(rm.id)}">Join the list for this room</a>` : ""}</div>
+        <div class="room-foot">${avail}${rm.availability !== "sold_out" ? `<a class="btn btn-outline btn-small" href="#reserve" data-pick="${esc(rm.id)}">Choose this room</a>` : ""}</div>
       </div>
     </article>`;
   }
@@ -213,7 +200,10 @@
       img.src = btn.dataset.src; img.alt = btn.dataset.alt;
       card.querySelectorAll(".room-thumbs button").forEach((x) => x.setAttribute("aria-pressed", String(x === btn)));
     }));
-    document.querySelectorAll("[data-pick]").forEach((a) => a.addEventListener("click", () => { $("wl-room").value = a.dataset.pick; }));
+    document.querySelectorAll("[data-pick]").forEach((a) => a.addEventListener("click", () => {
+      const radio = document.querySelector(`#rs-options input[value="${CSS.escape(a.dataset.pick)}"]`);
+      if (radio && !radio.disabled) { radio.checked = true; selectOption(radio.value); }
+    }));
   }
 
   // Photo mosaic: the first six photos, with "See all" opening the viewer. Returns false when there are none.
@@ -255,49 +245,68 @@
   }
 
   // ---- Waiting list form ----
-  function setFieldError(name, msg) {
-    const input = document.querySelector(`#wl-form [name="${name}"]`);
-    const out = $(`err-${name}`);
-    if (input) input.setAttribute("aria-invalid", msg ? "true" : "false");
-    if (out) out.textContent = msg || "";
+  // ---- Reserve: choose a room or immersion, then how to pay ----
+  const rs = { opts: [], option: null, plan: null, r: null, c: {} };
+  const guests = (n) => (n ? `${n} ${n === 1 ? "guest" : "guests"}` : "");
+
+  function renderReserve(d) {
+    const r = d.retreat, c = d.site.reserve || {};
+    Object.assign(rs, { r, c });
+    $("rs-heading").innerHTML = mark(c.heading || "Reserve your place");
+    $("rs-intro").innerHTML = mark(c.intro); $("rs-intro").hidden = !c.intro;
+    rs.opts = d.rooms.map((rm) => ({ id: rm.id, room: true, name: rm.name, price: rm.price_cents, early: null,
+      meta: [guests(rm.guest_capacity), rm.beds].filter(Boolean).join(" · "), sold: rm.availability === "sold_out" }))
+      .concat((r.immersions || []).map((i) => ({ id: i.id, room: false, name: i.name, price: i.price_cents, early: i.early_bird_price_cents,
+        meta: `${i.days ? `${i.days} ${i.days === 1 ? "day" : "days"}, ` : ""}no overnight stay`, sold: false })));
+    const opt = (o) => `<label class="rs-opt${o.sold ? " sold" : ""}"><input type="radio" name="option" value="${esc(o.id)}" ${o.sold ? "disabled" : ""}>
+      <span class="rs-opt-body"><span class="rs-name">${esc(o.name)}</span><span class="rs-meta">${o.sold ? "Sold out" : esc(o.meta)}</span></span>
+      <span class="rs-price">${money(o.price)}<small>per guest</small>${o.early != null ? `<small>Early bird ${money(o.early)}</small>` : ""}</span></label>`;
+    const rooms = rs.opts.filter((o) => o.room), imms = rs.opts.filter((o) => !o.room);
+    $("rs-options").innerHTML = `<p class="rs-group">Residential stays</p>${rooms.map(opt).join("")}`
+      + (imms.length ? `<p class="rs-group">Day immersions</p>${imms.map(opt).join("")}` : "");
+    $("rs-options").querySelectorAll("input").forEach((inp) => (inp.onchange = () => selectOption(inp.value)));
+    $("rs-closed").innerHTML = mark(c.closedNote); $("rs-closed").hidden = r.reservationsOpen || !c.closedNote;
+    const call = c.callUrl && /^https?:\/\//.test(c.callUrl);
+    $("rs-call").hidden = !call;
+    if (call) {
+      $("rs-call-heading").innerHTML = mark(c.callHeading || "Prefer to talk first?");
+      $("rs-call-text").innerHTML = mark(c.callText); $("rs-call-text").hidden = !c.callText;
+      $("rs-call-btn").textContent = c.callLabel || "Book a call"; $("rs-call-btn").href = c.callUrl;
+    }
+    updatePay();
   }
 
-  function wireForm() {
-    const form = $("wl-form"), btn = $("wl-submit");
-    const ta = form.intention;
-    ta.addEventListener("input", () => { $("wl-count").textContent = `${ta.value.length} / 500`; });
-    form.addEventListener("submit", async (ev) => {
-      ev.preventDefault();
-      $("wl-error").textContent = "";
-      setFieldError("name"); setFieldError("email");
-      const name = form.name.value.trim(), email = form.email.value.trim();
-      let bad = false;
-      if (!name) { setFieldError("name", "Please enter your name."); bad = true; }
-      if (!email) { setFieldError("email", "Please enter your email address."); bad = true; }
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setFieldError("email", "Please check your email address. It should look like name@example.com."); bad = true; }
-      if (bad) { form.querySelector('[aria-invalid="true"]').focus(); return; }
-      btn.disabled = true; btn.setAttribute("aria-busy", "true"); btn.textContent = "Joining…";
-      const tags = {};
-      ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "ref"].forEach((k) => { if (params.get(k)) tags[k] = params.get(k); });
-      try {
-        const res = await api("/api/site?fn=waitlist", {
-          name, email, room_pref: form.room_pref.value, intention: ta.value.trim(), marketing: form.marketing.checked,
-          website: form.website.value, ft: formToken, tags, source: params.get("src") || "public_page",
-        });
-        $("wl-done-msg").innerHTML = mark(res.message);
-        form.hidden = true;
-        $("wl-done").hidden = false;
-        $("wl-done").focus();
-        document.body.classList.add("joined");
-        $("dock").classList.remove("show");
-        document.body.classList.remove("has-dock");
-      } catch (e) {
-        if (e.data && e.data.field) { setFieldError(e.data.field, e.message); form[e.data.field] && form[e.data.field].focus(); }
-        else $("wl-error").textContent = e.message;
-      } finally {
-        btn.disabled = false; btn.removeAttribute("aria-busy"); btn.textContent = "Join the Waiting List";
-      }
-    });
+  function selectOption(id) {
+    const o = rs.opts.find((x) => x.id === id); if (!o) return;
+    rs.option = o;
+    const pct = rs.r.depositPercent;
+    const plans = o.room && pct ? ["deposit", "full"] : ["full"];
+    if (!plans.includes(rs.plan)) rs.plan = plans[0];
+    const dep = Math.round((o.price * pct) / 100);
+    const label = { deposit: rs.c.depositLabel || "Pay the deposit", full: rs.c.fullLabel || "Pay in full" };
+    const detail = {
+      deposit: `<strong>${money(dep)}</strong> today (${pct}%)<small>The balance of ${money(o.price - dep)} is paid in installments before the retreat.</small>`,
+      full: `<strong>${money(o.price)}</strong> today${o.early != null ? `<small>Early-bird price of ${money(o.early)} while it lasts.</small>` : ""}`,
+    };
+    $("rs-plans").innerHTML = plans.map((p) => `<label class="rs-plan"><input type="radio" name="plan" value="${p}" ${p === rs.plan ? "checked" : ""}>
+      <span><span class="rs-name">${esc(label[p])}</span><span class="rs-detail">${detail[p]}</span></span></label>`).join("");
+    $("rs-plans").querySelectorAll("input").forEach((inp) => (inp.onchange = () => { rs.plan = inp.value; updatePay(); }));
+    $("rs-plan-set").hidden = false;
+    updatePay();
+  }
+
+  function updatePay() {
+    const btn = $("rs-pay"), o = rs.option, open = rs.r && rs.r.reservationsOpen;
+    const links = (rs.r && rs.r.payLinks) || {};
+    const link = o ? ((links[o.id] || {})[rs.plan] || (o.room ? (links["*"] || {})[rs.plan] : "")) : "";
+    if (o) {
+      const pct = rs.r.depositPercent, dep = Math.round((o.price * pct) / 100);
+      $("rs-summary").innerHTML = `${esc(o.name)}: ${rs.plan === "deposit" ? `${money(dep)} deposit today` : `${money(o.price)} today`}, per guest.`;
+    }
+    const ready = Boolean(o && open && link);
+    btn.setAttribute("aria-disabled", String(!ready));
+    if (ready) btn.href = link; else btn.removeAttribute("href");
+    btn.textContent = ready ? (rs.c.payLabel || "Secure your spot") : !open ? (rs.c.closedLabel || "Payments open soon") : o ? "Payment link coming soon" : (rs.c.payLabel || "Secure your spot");
   }
 
   // ---- Tabs and mobile dock ----
@@ -324,24 +333,21 @@
     const hide = new Set();
     const dio = new IntersectionObserver((entries) => {
       entries.forEach((en) => (en.isIntersecting ? hide.add(en.target.id) : hide.delete(en.target.id)));
-      const show = hide.size === 0 && !document.body.classList.contains("joined");
-      dock.classList.toggle("show", show);
-      document.body.classList.toggle("has-dock", !document.body.classList.contains("joined"));
+      dock.classList.toggle("show", hide.size === 0);
+      document.body.classList.add("has-dock");
     });
-    ["hero", "waitlist"].forEach((id) => dio.observe($(id)));
+    ["hero", "reserve"].forEach((id) => dio.observe($(id)));
   }
 
   async function load() {
     try {
       data = await api(`/api/site?fn=content${preview ? "&preview=1" : ""}`);
-      formToken = data.formToken;
       render(data);
     } catch (e) {
       $("main").insertAdjacentHTML("afterbegin", `<div class="wrap" style="padding:24px 0"><p class="notice" role="alert">${esc(e.message)}</p></div>`);
     } finally {
       $("main").removeAttribute("aria-busy");
     }
-    wireForm();
     wireNav();
     wireLightbox();
     if (location.hash && document.querySelector(location.hash)) document.querySelector(location.hash).scrollIntoView({ behavior: "instant" });

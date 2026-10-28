@@ -8,8 +8,9 @@ process.chdir(ROOT);
 const env = process.env;
 env.DATABASE_URL ||= "pglite:memory";
 env.APP_SECRET ||= "local-dev-secret-local-dev-secret-0123456789";
-env.SETUP_TOKEN ||= "local-setup-token-123";
-env.ADMIN_PASSWORD ||= "local-admin-code-123";
+env.ADMIN_EMAIL ||= "estar@example.com";
+env.ADMIN_PASSWORD ||= "local-admin-password-123";
+env.ADMIN_NAME ||= "Estar";
 env.RESEND_API_KEY ||= "re_test_fake";
 env.EMAIL_FROM ||= "Empowered Wombman <hello@example.com>";
 env.CRON_SECRET ||= "local-cron";
@@ -57,4 +58,4 @@ http.createServer(async (req, res) => {
   if (!fs.existsSync(f)) { res.writeHead(404); return res.end("Not found"); }
   res.setHeader("Content-Type", types[path.extname(f)] || "application/octet-stream");
   res.end(fs.readFileSync(f));
-}).listen(PORT, () => console.log(`Dev server on http://localhost:${PORT}  (setup token: ${env.SETUP_TOKEN}, admin code: ${env.ADMIN_PASSWORD})`));
+}).listen(PORT, () => console.log(`Dev server on http://localhost:${PORT}  (admin: ${env.ADMIN_EMAIL} / ${env.ADMIN_PASSWORD})`));
