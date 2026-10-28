@@ -177,25 +177,10 @@ section { padding: clamp(64px, 9vw, 112px) 0; }
 .reserve h2 { color: var(--bg); }
 .reserve .lede { color: var(--bg); opacity: .95; max-width: 62ch; }
 .rs-card { margin-top: 28px; background: var(--bg); color: var(--ink); border-radius: 8px; padding: clamp(20px, 4vw, 36px); display: grid; gap: 26px; }
-.rs-card fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
-.rs-card legend { font-family: var(--serif); font-size: 21px; padding: 0; margin-bottom: 12px; }
-.rs-group { margin: 16px 0 8px; font-weight: 600; font-size: 13.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--olive); }
-.rs-group:first-child { margin-top: 0; }
-.rs-options { display: grid; gap: 8px; }
-.rs-opt, .rs-plan { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 16px; border: 1.5px solid var(--line); border-radius: 6px; cursor: pointer; background: #fff; }
-.rs-plan { grid-template-columns: auto minmax(0, 1fr); }
-.rs-opt:hover, .rs-plan:hover { border-color: var(--olive); }
-.rs-opt:has(input:checked), .rs-plan:has(input:checked) { border-color: var(--olive); background: var(--tint); box-shadow: inset 0 0 0 1px var(--olive); }
-.rs-opt input, .rs-plan input { width: 20px; height: 20px; margin: 0; accent-color: var(--olive); }
-.rs-opt.sold { opacity: .55; cursor: not-allowed; }
-.rs-opt-body, .rs-plan > span { display: grid; gap: 2px; min-width: 0; }
-.rs-name { font-family: var(--serif); font-size: 18px; }
-.rs-meta { font-size: 14px; color: var(--muted); }
-.rs-price { text-align: right; font-family: var(--serif); font-size: 19px; white-space: nowrap; }
-.rs-price small { display: block; font-family: var(--sans); font-size: 12.5px; color: var(--muted); }
-.rs-detail { font-size: 15px; color: var(--muted); }
-.rs-detail strong { font-family: var(--serif); font-weight: 400; font-size: 20px; color: var(--ink); }
-.rs-detail small { display: block; font-size: 13.5px; }
+.rs-step { display: grid; gap: 8px; }
+.rs-label { font-family: var(--serif); font-size: 21px; }
+.rs-step select { width: 100%; max-width: 640px; font-size: 16.5px; min-height: 50px; }
+.rs-detail { margin: 0; font-size: 15px; color: var(--muted); }
 .rs-pay { display: grid; gap: 12px; justify-items: start; border-top: 1px solid var(--line); padding-top: 22px; }
 .rs-summary { margin: 0; font-size: 17px; }
 .rs-pay .btn { min-width: 220px; }
@@ -226,9 +211,6 @@ section { padding: clamp(64px, 9vw, 112px) 0; }
   .topbar .brand { flex-direction: column; align-items: flex-start; gap: 3px; padding: 6px 0; }
   .topbar .ph-tag { font-size: 9.5px; padding: 3px 5px; }
   .portal-link { padding: 8px 12px; font-size: 13px; }
-  .rs-opt { grid-template-columns: auto minmax(0, 1fr); }
-  .rs-price { grid-column: 2; text-align: left; }
-  .rs-price small { display: inline; margin-left: 6px; }
   .rs-pay .btn { width: 100%; }
   .rooms-grid { grid-template-columns: 1fr; }
   .facts div, .room dl div { grid-template-columns: 96px 1fr; }

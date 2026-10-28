@@ -42,7 +42,7 @@ Only owners can:
   - the Experience sessions and the note on the pace of the days
   - "What you'll take home" and the "Your investment" summary (each shows once filled in)
   - the wording around the day immersions
-  - the Reserve section and the **Book a call** button and link
+  - the Secure your spot section and the **Book a call** button and link
   - Estar's bio
   - FAQs
   - testimonials

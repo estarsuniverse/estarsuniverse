@@ -118,7 +118,7 @@
         <span class="inv-meta">${[rm.guest_capacity && `${rm.guest_capacity} ${rm.guest_capacity === 1 ? "guest" : "guests"}`, rm.beds].filter(Boolean).map(esc).join(" · ")}</span>
         <span class="inv-price">${money(rm.price_cents)} <small>${esc(rm.price_basis_label)}</small></span></a></li>`).join("");
       $("inv-pay").innerHTML = (inv.paymentNote ? `<p>${mark(inv.paymentNote)}</p>` : "")
-        + '<a class="btn btn-primary" href="#reserve">Reserve your place</a>';
+        + '<a class="btn btn-primary" href="#reserve">Secure your spot</a>';
     }
     const t = r.terms;
     const termLabels = { deposit_text: "Deposit", installments_text: "Payment schedule", fees_text: "Fees", taxes_text: "Taxes", cancellation_text: "Cancellation", transfer_text: "Transfers", refund_text: "Refunds" };
@@ -149,7 +149,7 @@
     const c = s.contact || {};
     const contactBits = c.verified ? [c.email && `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`, c.phone && `<a href="tel:${esc(c.phone.replace(/[^\d+]/g, ""))}">${esc(c.phone)}</a>`].filter(Boolean) : [];
     $("contact-line").innerHTML = contactBits.length ? `Still have a question? Reach us at ${contactBits.join(" or ")}.${c.responseTime ? ` ${esc(c.responseTime)}` : ""}` : "";
-    $("foot-links").innerHTML = [...contactBits, '<a href="/portal/">Guest Portal</a>', '<a href="#reserve">Reserve</a>'].map((x) => `<span>${x}</span>`).join("");
+    $("foot-links").innerHTML = [...contactBits, '<a href="/portal/">Guest Portal</a>', '<a href="#reserve">Secure your spot</a>'].map((x) => `<span>${x}</span>`).join("");
     $("foot-fine").textContent = `© ${new Date().getFullYear()} ${b.orgName || "Empowered Wombman"}`;
 
     // Reserve
@@ -201,8 +201,8 @@
       card.querySelectorAll(".room-thumbs button").forEach((x) => x.setAttribute("aria-pressed", String(x === btn)));
     }));
     document.querySelectorAll("[data-pick]").forEach((a) => a.addEventListener("click", () => {
-      const radio = document.querySelector(`#rs-options input[value="${CSS.escape(a.dataset.pick)}"]`);
-      if (radio && !radio.disabled) { radio.checked = true; selectOption(radio.value); }
+      const o = rs.opts.find((x) => x.id === a.dataset.pick);
+      if (o && !o.sold) selectOption(o.id);
     }));
   }
 
@@ -252,19 +252,18 @@
   function renderReserve(d) {
     const r = d.retreat, c = d.site.reserve || {};
     Object.assign(rs, { r, c });
-    $("rs-heading").innerHTML = mark(c.heading || "Reserve your place");
+    $("rs-heading").innerHTML = mark(c.heading || "Secure your spot");
     $("rs-intro").innerHTML = mark(c.intro); $("rs-intro").hidden = !c.intro;
     rs.opts = d.rooms.map((rm) => ({ id: rm.id, room: true, name: rm.name, price: rm.price_cents, early: null,
       meta: [guests(rm.guest_capacity), rm.beds].filter(Boolean).join(" · "), sold: rm.availability === "sold_out" }))
       .concat((r.immersions || []).map((i) => ({ id: i.id, room: false, name: i.name, price: i.price_cents, early: i.early_bird_price_cents,
         meta: `${i.days ? `${i.days} ${i.days === 1 ? "day" : "days"}, ` : ""}no overnight stay`, sold: false })));
-    const opt = (o) => `<label class="rs-opt${o.sold ? " sold" : ""}"><input type="radio" name="option" value="${esc(o.id)}" ${o.sold ? "disabled" : ""}>
-      <span class="rs-opt-body"><span class="rs-name">${esc(o.name)}</span><span class="rs-meta">${o.sold ? "Sold out" : esc(o.meta)}</span></span>
-      <span class="rs-price">${money(o.price)}<small>per guest</small>${o.early != null ? `<small>Early bird ${money(o.early)}</small>` : ""}</span></label>`;
+    const opt = (o) => `<option value="${esc(o.id)}" ${o.sold ? "disabled" : ""}>${esc(o.name)} · ${o.sold ? "Sold out"
+      : `${money(o.price)} per guest${o.early != null ? ` (early bird ${money(o.early)})` : ""}`}</option>`;
     const rooms = rs.opts.filter((o) => o.room), imms = rs.opts.filter((o) => !o.room);
-    $("rs-options").innerHTML = `<p class="rs-group">Residential stays</p>${rooms.map(opt).join("")}`
-      + (imms.length ? `<p class="rs-group">Day immersions</p>${imms.map(opt).join("")}` : "");
-    $("rs-options").querySelectorAll("input").forEach((inp) => (inp.onchange = () => selectOption(inp.value)));
+    $("rs-option").insertAdjacentHTML("beforeend", `<optgroup label="Residential stays">${rooms.map(opt).join("")}</optgroup>`
+      + (imms.length ? `<optgroup label="Day immersions">${imms.map(opt).join("")}</optgroup>` : ""));
+    $("rs-option").onchange = (e) => selectOption(e.target.value);
     $("rs-closed").innerHTML = mark(c.closedNote); $("rs-closed").hidden = r.reservationsOpen || !c.closedNote;
     const call = c.callUrl && /^https?:\/\//.test(c.callUrl);
     $("rs-call").hidden = !call;
@@ -277,21 +276,24 @@
   }
 
   function selectOption(id) {
-    const o = rs.opts.find((x) => x.id === id); if (!o) return;
-    rs.option = o;
+    const o = rs.opts.find((x) => x.id === id);
+    rs.option = o || null;
+    $("rs-option").value = o ? o.id : "";
+    $("rs-option-detail").textContent = o ? o.meta : ""; $("rs-option-detail").hidden = !o;
+    $("rs-plan-step").hidden = !o;
+    if (!o) return updatePay();
     const pct = rs.r.depositPercent;
     const plans = o.room && pct ? ["deposit", "full"] : ["full"];
     if (!plans.includes(rs.plan)) rs.plan = plans[0];
     const dep = Math.round((o.price * pct) / 100);
     const label = { deposit: rs.c.depositLabel || "Pay the deposit", full: rs.c.fullLabel || "Pay in full" };
-    const detail = {
-      deposit: `<strong>${money(dep)}</strong> today (${pct}%)<small>The balance of ${money(o.price - dep)} is paid in installments before the retreat.</small>`,
-      full: `<strong>${money(o.price)}</strong> today${o.early != null ? `<small>Early-bird price of ${money(o.early)} while it lasts.</small>` : ""}`,
+    const amount = { deposit: money(dep), full: money(o.price) };
+    rs.planNote = {
+      deposit: `The balance of ${money(o.price - dep)} is paid in installments before the retreat.`,
+      full: o.early != null ? `Early-bird price of ${money(o.early)} while it lasts.` : "",
     };
-    $("rs-plans").innerHTML = plans.map((p) => `<label class="rs-plan"><input type="radio" name="plan" value="${p}" ${p === rs.plan ? "checked" : ""}>
-      <span><span class="rs-name">${esc(label[p])}</span><span class="rs-detail">${detail[p]}</span></span></label>`).join("");
-    $("rs-plans").querySelectorAll("input").forEach((inp) => (inp.onchange = () => { rs.plan = inp.value; updatePay(); }));
-    $("rs-plan-set").hidden = false;
+    $("rs-plan").innerHTML = plans.map((p) => `<option value="${p}" ${p === rs.plan ? "selected" : ""}>${esc(label[p])}${p === "deposit" ? ` (${pct}%)` : ""}: ${amount[p]}</option>`).join("");
+    $("rs-plan").onchange = (e) => { rs.plan = e.target.value; updatePay(); };
     updatePay();
   }
 
@@ -299,6 +301,8 @@
     const btn = $("rs-pay"), o = rs.option, open = rs.r && rs.r.reservationsOpen;
     const links = (rs.r && rs.r.payLinks) || {};
     const link = o ? ((links[o.id] || {})[rs.plan] || (o.room ? (links["*"] || {})[rs.plan] : "")) : "";
+    $("rs-plan-detail").textContent = o ? rs.planNote[rs.plan] : ""; $("rs-plan-detail").hidden = !(o && rs.planNote[rs.plan]);
+    if (!o) $("rs-summary").textContent = "Choose an option to see your total.";
     if (o) {
       const pct = rs.r.depositPercent, dep = Math.round((o.price * pct) / 100);
       $("rs-summary").innerHTML = `${esc(o.name)}: ${rs.plan === "deposit" ? `${money(dep)} deposit today` : `${money(o.price)} today`}, per guest.`;

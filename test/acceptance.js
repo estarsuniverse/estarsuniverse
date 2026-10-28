@@ -71,22 +71,22 @@ async function signInGuest(c, email) {
 
   // ---------- Public page and prices ----------
   let content;
-  await check("Public content loads; all 7 room prices are exact (Emerald and Obsidian aligned at $2,799)", async () => {
+  await check("Public content loads; the 5 offered room prices are exact (Emerald and Obsidian aligned at $2,799)", async () => {
     content = await visitor.get("/api/site?fn=content");
     assert.equal(content.status, 200);
-    const want = { "Sapphire": 319900, "Tiger’s Eye": 299900, "Emerald": 279900, "Obsidian": 279900, "Moonstone": 269900, "Downstairs queen sofa bed 1": 111100, "Downstairs queen sofa bed 2": 111100 };
+    const want = { "Sapphire": 319900, "Tiger’s Eye": 299900, "Emerald": 279900, "Obsidian": 279900, "Moonstone": 269900 };
     const got = Object.fromEntries(content.data.rooms.map((r) => [r.name, r.price_cents]));
     assert.deepEqual(got, want);
   });
   await check("Prices are per guest, include the full retreat, and capacities match the confirmed details", async () => {
-    const want = { "Sapphire": 1, "Tiger’s Eye": 2, "Emerald": 2, "Obsidian": 2, "Moonstone": 3, "Downstairs queen sofa bed 1": 1, "Downstairs queen sofa bed 2": 1 };
+    const want = { "Sapphire": 1, "Tiger’s Eye": 2, "Emerald": 2, "Obsidian": 2, "Moonstone": 3 };
     for (const r of content.data.rooms) {
       assert.equal(r.price_basis, "per_guest"); assert.equal(r.guest_capacity, want[r.name], r.name);
       assert.equal(r.includes_admission, "yes"); assert.equal(r.difference_note, ""); assert.equal(r.availability, "waitlist");
     }
   });
   await check("Room photos load, with descriptions", async () => {
-    const want = { "Sapphire": 4, "Tiger’s Eye": 4, "Emerald": 5, "Obsidian": 4, "Moonstone": 6, "Downstairs queen sofa bed 1": 6, "Downstairs queen sofa bed 2": 6 };
+    const want = { "Sapphire": 4, "Tiger’s Eye": 4, "Emerald": 5, "Obsidian": 4, "Moonstone": 6 };
     for (const r of content.data.rooms) {
       assert.equal(r.photos.length, want[r.name], r.name);
       for (const p of r.photos) { assert.ok(p.alt && p.alt.length > 20, p.url); assert.equal((await fetch(BASE + p.url)).status, 200, p.url); }
@@ -101,10 +101,10 @@ async function signInGuest(c, email) {
     assert.equal(by["Sapphire"].beds, "1 queen bed"); assert.equal(by["Moonstone"].beds, "3 queen beds");
     for (const n of ["Tiger’s Eye", "Emerald", "Obsidian"]) assert.equal(by[n].beds, "2 queen beds", n);
     for (const n of ["Sapphire", "Tiger’s Eye", "Emerald", "Obsidian"]) assert.match(by[n].bathroom, /^Private en suite/, n);
-    for (const n of ["Moonstone", "Downstairs queen sofa bed 1", "Downstairs queen sofa bed 2"]) assert.equal(by[n].bathroom, "Detached shared full bathroom", n);
-    for (const n of ["Emerald", "Moonstone", "Downstairs queen sofa bed 1", "Downstairs queen sofa bed 2"]) assert.match(by[n].accessibility, /^Downstairs/, n);
+    for (const n of ["Moonstone"]) assert.equal(by[n].bathroom, "Detached shared full bathroom", n);
+    for (const n of ["Emerald", "Moonstone"]) assert.match(by[n].accessibility, /^Downstairs/, n);
     for (const n of ["Sapphire", "Tiger’s Eye", "Obsidian"]) assert.equal(by[n].accessibility, "Upstairs.", n);
-    for (const n of ["Moonstone", "Downstairs queen sofa bed 1", "Downstairs queen sofa bed 2"]) assert.equal(by[n].features, "Shared detached balcony with a jacuzzi", n);
+    for (const n of ["Moonstone"]) assert.equal(by[n].features, "Shared detached balcony with a jacuzzi", n);
     for (const r of content.data.rooms) assert.ok(!("privacy" in r), r.name);
     assert.match(content.data.site.stay.sharedNote, /No one shares a bed/);
   });
@@ -296,6 +296,16 @@ async function signInGuest(c, email) {
     assert.equal((await again.admin("status")).data.admin.role, "staff");
     assert.equal((await again.admin("login", { email: "jadon@example.com", password: "local-admin-password-123" })).status, 400, "the owner password only works for the owner email");
   });
+  await check("The sofa beds are hidden from the public page but kept, with their details, in the admin area", async () => {
+    const pub = (await visitor.get("/api/site?fn=content")).data.rooms;
+    assert.equal(pub.length, 5); assert.ok(!pub.some((r) => /sofa/i.test(r.name)));
+    const rooms = (await owner.admin("rooms-list")).data.rooms.filter((r) => /sofa/i.test(r.name));
+    assert.equal(rooms.length, 2);
+    for (const r of rooms) {
+      assert.equal(r.visible, false); assert.equal(r.price_cents, 111100); assert.equal(r.guest_capacity, 1);
+      assert.equal(r.bathroom, "Detached shared full bathroom"); assert.equal(r.photos.length, 6);
+    }
+  });
   await check("Staff permissions are enforced on the server", async () => {
     const rooms = (await staff.admin("rooms-list")).data.rooms;
     const em = rooms.find((r) => r.name === "Emerald");
@@ -354,10 +364,10 @@ async function signInGuest(c, email) {
     assert.deepEqual(r.room_emerald, { deposit: "https://pay.example.com/deposit", full: "https://pay.example.com/full" });
     assert.deepEqual(r.imm_one_day, { deposit: "", full: "https://pay.example.com/one-day" }, "immersions are paid in full");
   });
-  await check("The Reserve section and Book a call wording are public; the hero button says Reserve", async () => {
+  await check("The Secure your spot section and Book a call wording are public, and the hero button says Secure your spot", async () => {
     const s = (await visitor.get("/api/site?fn=content")).data.site;
-    assert.equal(s.reserve.heading, "Reserve your place"); assert.equal(s.reserve.callLabel, "Book a call");
-    assert.equal(s.hero.primaryLabel, "Reserve your place");
+    assert.equal(s.reserve.heading, "Secure your spot"); assert.equal(s.reserve.callLabel, "Book a call");
+    assert.equal(s.hero.primaryLabel, "Secure your spot");
     assert.equal(s.reserve.payLabel, "Secure your spot");
     assert.ok(!/waiting list/i.test(s.faqs.find((f) => f.id === "f8").a));
   });

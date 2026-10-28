@@ -110,7 +110,7 @@ Neon keeps point-in-time history of the database, and you can restore to an earl
 ```bash
 npm install
 npm run dev          # http://localhost:3000 (in-memory Postgres, fake email)
-npm test             # 48 end-to-end acceptance checks
+npm test             # 49 end-to-end acceptance checks
 ```
 
 Local testing works like this:
@@ -164,9 +164,10 @@ All of these can be edited in the admin area. Text in `[square brackets]` is hig
 - ~~**Guest capacities.**~~ **Done:** Sapphire 1, Tiger’s Eye 2, Emerald 2, Obsidian 2, Moonstone 3, each sofa bed 1. No one shares a bed (`migrations/009_separate_beds.sql`).
 - ~~**Event photos.**~~ **Done:** ten photos from Estar’s past gatherings are in The Experience gallery (`public/media/events/`, `migrations/003_event_photos.sql`). Edit them in Content and Branding, then The Experience, then Photos. Confirm everyone pictured has agreed to appear on the site.
 - ~~**Beds, bathrooms and accessibility.**~~ **Done** (`migrations/007_room_beds_bathrooms.sql`; the sofa beds share Moonstone’s bathroom, `migrations/010_downstairs_bathroom_balcony.sql`). Room privacy is no longer shown.
+- **Sofa beds.** The two downstairs queen sofa beds are no longer offered: they're hidden from the public page (`migrations/017_hide_sofa_beds.sql`) but kept in Rooms and Inventory. Turn **visible** back on there to offer them again.
 - ~~**Admission and Emerald/Obsidian pricing.**~~ **Done:** every room price includes the complete retreat experience, and Obsidian matches Emerald at $2,799 (`migrations/013_estar_confirmed_offer.sql`).
 - **Room inventory.** Confirm the sellable units for each room (Rooms and Inventory).
-- **Reserve and payment.** The public page now has a **Reserve** section in place of the waiting-list form: guests choose a room or day immersion, then the 30% deposit or pay in full (immersions are pay in full), and **Secure your spot** goes to the payment link the owner sets in Bookings and Payments. It works only once reservations are open, which needs every launch checklist item, including a payment link for every option. Still needed: the payment links, and the **Book a call** link (Content and Branding, Reserve and Book a call). Paid rooms must be marked sold in Rooms and Inventory, because the outside payment site can't do that.
+- **Secure your spot.** The public page has a **Secure your spot** section in place of the waiting-list form: guests pick a room or day immersion from a dropdown, then the 30% deposit or pay in full from a second dropdown (immersions are pay in full), and the **Secure your spot** button goes to the payment link the owner sets in Bookings and Payments. It works only once reservations are open, which needs every launch checklist item, including a payment link for every option. Still needed: the payment links, and the **Book a call** link (Content and Branding, Secure your spot and Book a call). Paid rooms must be marked sold in Rooms and Inventory, because the outside payment site can't do that.
 - **Payment terms.** Agreed so far and saved in Bookings and Payments: a 30% nonrefundable deposit, the balance in installments, transfers considered with advance notice and approval. Still needed before reservations open: installment deadlines, cancellation windows, refund terms, taxes and fees. Then mark the terms approved.
 - ~~**Day immersions.**~~ **Done:** One-Day $444 and Two-Day $666, with early-bird prices of $333 and $555 (Settings and Audit). Still needed: the early-bird deadline or number of spots.
 - ~~**Experience.**~~ **Done:** Estar's seven experiences are published. The schedule and specific ceremonies are still to be finalized in the itinerary.

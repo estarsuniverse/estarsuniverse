@@ -586,7 +586,7 @@
         ${F.text("trust.policiesText", "Policies (privacy, refunds, conduct)", { wide: true, area: true, rows: 5, hint: "Text from the attorney" })}</div></div>
       <div class="panel"><h2>Contact</h2><div class="fgrid">${F.text("contact.email", "Support email", { type: "email" })}${F.text("contact.phone", "Phone")}${F.text("contact.responseTime", "Response expectation", { hint: "e.g. We reply within 2 business days." })}
         <div class="wide">${F.bool("contact.verified", `These contact details are verified and can be shown${isOwner() ? "" : " (owner only)"}`, { dis: own })}</div></div></div>
-      <div class="panel"><h2>Reserve and Book a call</h2><p class="small muted">The section where guests choose a room or immersion and pay. Prices come from Rooms and Inventory and Settings; the payment links are set by the owner in Bookings and Payments.</p><div class="fgrid">
+      <div class="panel"><h2>Secure your spot and Book a call</h2><p class="small muted">The section where guests choose a room or immersion and pay. Prices come from Rooms and Inventory and Settings; the payment links are set by the owner in Bookings and Payments.</p><div class="fgrid">
         ${F.text("reserve.heading", "Heading")}${F.text("reserve.payLabel", "Payment button")}${F.text("reserve.intro", "Introduction", { wide: true, area: true, rows: 2 })}
         ${F.text("reserve.depositLabel", "Deposit option")}${F.text("reserve.fullLabel", "Pay in full option")}
         ${F.text("reserve.closedLabel", "Button while payments are closed")}${F.text("reserve.closedNote", "Note while payments are closed", { wide: true, area: true, rows: 2 })}

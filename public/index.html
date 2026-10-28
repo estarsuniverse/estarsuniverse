@@ -32,7 +32,7 @@
         <li><a href="#itinerary">Itinerary</a></li>
         <li><a href="#host" id="tab-host">Meet Estar</a></li>
         <li><a href="#faqs">FAQs</a></li>
-        <li><a href="#reserve" class="tab-cta">Reserve</a></li>
+        <li><a href="#reserve" class="tab-cta">Secure your spot</a></li>
       </ul>
     </div>
   </nav>
@@ -49,7 +49,7 @@
         <p class="hero-sub" id="hero-sub"></p>
         <p class="hero-when" id="hero-when"></p>
         <div class="hero-ctas">
-          <a class="btn btn-primary" href="#reserve" id="hero-primary">Reserve your place</a>
+          <a class="btn btn-primary" href="#reserve" id="hero-primary">Secure your spot</a>
           <a class="btn btn-ghost" href="#experience" id="hero-secondary">Explore the Experience</a>
         </div>
       </div>
@@ -149,17 +149,19 @@
 
   <section class="reserve on-dark" id="reserve">
     <div class="wrap">
-      <h2 id="rs-heading">Reserve your place</h2>
+      <h2 id="rs-heading">Secure your spot</h2>
       <p class="lede" id="rs-intro"></p>
       <form class="rs-card" id="rs-form" novalidate>
-        <fieldset>
-          <legend>1. Choose your option</legend>
-          <div class="rs-options" id="rs-options"></div>
-        </fieldset>
-        <fieldset id="rs-plan-set" hidden>
-          <legend>2. Choose how to pay</legend>
-          <div class="rs-plans" id="rs-plans"></div>
-        </fieldset>
+        <div class="rs-step">
+          <label class="rs-label" for="rs-option">1. Choose your option</label>
+          <select id="rs-option"><option value="">Choose a room or day immersion</option></select>
+          <p class="rs-detail" id="rs-option-detail" hidden></p>
+        </div>
+        <div class="rs-step" id="rs-plan-step" hidden>
+          <label class="rs-label" for="rs-plan">2. Choose how to pay</label>
+          <select id="rs-plan"></select>
+          <p class="rs-detail" id="rs-plan-detail" hidden></p>
+        </div>
         <div class="rs-pay">
           <p class="rs-summary" id="rs-summary" aria-live="polite">Choose an option to see your total.</p>
           <a class="btn btn-primary" id="rs-pay" role="button" aria-disabled="true">Secure your spot</a>
@@ -196,7 +198,7 @@
 
 <div class="dock" id="dock" role="region" aria-label="Quick action">
   <span class="dock-text" id="dock-text">Reservations open soon</span>
-  <a class="btn btn-primary" href="#reserve">Reserve</a>
+  <a class="btn btn-primary" href="#reserve">Secure your spot</a>
 </div>
 
 <script src="/js/common.js"></script>
